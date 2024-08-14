@@ -1,0 +1,3 @@
+include LICENSE.txt
+recursive-exclude * __pycache__
+recursive-include map3C *.txt *.Snakefile *.smk
