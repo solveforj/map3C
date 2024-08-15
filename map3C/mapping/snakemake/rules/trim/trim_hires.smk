@@ -16,7 +16,7 @@ rule get_dna_reads:
     params:
         extra=config["trim_methods"]["hires"]["cutadapt_params"]
     conda:
-        "map3C_trim_hires"
+        "map3C_preprocess_hires"
     shell:
         """
         cutadapt --report=minimal {params.extra} -j {threads} \
@@ -33,7 +33,7 @@ rule seqtk_stats:
     threads:
         2
     conda:
-        "map3C_trim_hires"
+        "map3C_preprocess_hires"
     shell:
         """
         seqtk size {input.r1} > {output.stats}

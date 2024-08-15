@@ -1,0 +1,7 @@
+name: map3C_preprocess_meta
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - seqtk=1.4

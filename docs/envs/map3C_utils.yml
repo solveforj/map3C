@@ -1,0 +1,12 @@
+name: map3C_utils
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - biscuit=1.5.0.20240506
+  - bwa=0.7.18
+  - dupsifter=1.2.1.20240119
+  - pairix=0.3.8
+  - pairtools=1.1.0
+  - samtools=1.20

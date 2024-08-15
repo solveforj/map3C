@@ -1,0 +1,8 @@
+name: map3C_preprocess_hires
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - cutadapt=3.5
+  - seqtk=1.4

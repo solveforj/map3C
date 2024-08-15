@@ -70,7 +70,7 @@ rule demultiplex:
         cutadapt_out_R1=lambda wildcards: f"{wildcards.plate}_{{name}}/{wildcards.plate}_{{name}}_indexed_R1.fastq.gz",
         cutadapt_out_R2=lambda wildcards: f"{wildcards.plate}_{{name}}/{wildcards.plate}_{{name}}_indexed_R2.fastq.gz",
     conda:
-        "map3C_trim_snm3Cseq"
+        "map3C_preprocess_snm3Cseq"
     shell:
         """
         cutadapt -j {threads} -Z -e 1 --no-indels --action=none -g ^file:{barcodes} \

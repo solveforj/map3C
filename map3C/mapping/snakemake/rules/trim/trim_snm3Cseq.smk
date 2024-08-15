@@ -9,7 +9,7 @@ rule trim_fastq:
     threads:
         2
     conda:
-        "map3C_trim_snm3Cseq"
+        "map3C_preprocess_snm3Cseq"
     params:
         extra=config["trim_methods"]["snm3Cseq"]["cutadapt_params"]
     shell:

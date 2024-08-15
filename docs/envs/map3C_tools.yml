@@ -1,0 +1,16 @@
+name: map3C_tools
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - biopython=1.78
+  - numpy=1.26.4
+  - pandas=2.2.2
+  - pysam=0.22.1
+  - python=3.12.2
+  - samtools=1.20
+  - pip=24.2
+  - pip:
+      - pyyaml==6.0.2
+      - git+https://github.com/solveforj/map3C.git

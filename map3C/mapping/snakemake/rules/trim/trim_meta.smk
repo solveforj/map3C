@@ -7,7 +7,7 @@ rule interleave:
     threads:
         1
     conda:
-        "map3C_trim_meta"
+        "map3C_preprocess_meta"
     shell:
         """
         seqtk mergepe {input.r1} {input.r2} | gzip > {output}
@@ -24,7 +24,7 @@ rule trim:
         pre_meta=config["trim_methods"]["meta"]["pre-meta"],
         extra=config["trim_methods"]["meta"]["pre-meta_params"]
     conda:
-        "map3C_trim_meta"
+        "map3C_preprocess_meta"
     shell:
         """
         zcat {input} | {params.pre_meta} -t {threads} {params.extra} - | gzip > {output}
@@ -38,7 +38,7 @@ rule seqtk_stats:
     threads:
         2
     conda:
-        "map3C_trim_meta"
+        "map3C_preprocess_meta"
     shell:
         """
         seqtk size {input} > {output.stats}

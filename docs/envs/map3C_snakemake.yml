@@ -1,0 +1,8 @@
+name: map3C_snakemake
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12.5
+  - snakemake=8.16.0
