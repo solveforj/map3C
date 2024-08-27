@@ -6,7 +6,7 @@ rule mark_duplicates:
         bam = temp("{id}_mkdup.bam"),
         stats = temp("{id}_dupsifter_stats.tmp.txt")
     params:
-        reference_path=config["general"]["reference_path"],
+        reference_path=config["align"]["align_params"]["biscuit"]["reference_path"],
         extra=config["read_duplicates"]["dupsifter_params"]
     conda:
         "map3C_utils"

@@ -8,7 +8,11 @@ rule pairtools_filterbycov:
             if last_contacts_step == "lowcov"
             else temp("{id}_contacts.dedup.lowcov.pairs.gz")
         ),
-        highcov = temp("{id}_contacts.dedup.highcov.pairs.gz"),
+        highcov = (
+            "{id}_artefacts.dedup.highcov.pairs.gz"
+            if config["contacts"]["lowcov"]["keep_highcov"]
+            else temp("{id}_artefacts.dedup.highcov.pairs.gz")        
+        ),
         stats = temp("{id}_filterbycov_stats.txt")
     params:
         extra=config["contacts"]["lowcov"]["filterbycov_params"]

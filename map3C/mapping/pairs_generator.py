@@ -23,8 +23,8 @@ class Pair:
         self.pos2 = algn2["pos"]
         self.strand1 = algn1["strand"]
         self.strand2 = algn2["strand"]
-        self.type1 = algn1['type']
-        self.type2 = algn2['type']
+        self.type1 = "R" if algn1['type'] == "X" else algn1["type"]
+        self.type2 = "R" if algn2['type'] == "X" else algn2["type"]
         self.phase1 = ""
         self.phase2 = ""
         self.rule = rule
@@ -143,6 +143,11 @@ class Pair:
         return line
 
 class PairsGenerator:
+
+    bam_status = {"C": "alignments_with_conflicting_phase",
+                  "P": "alignments_with_phase",
+                  "N": "alignments_without_phase"}
+    
     def write_header(self, handle, artefacts=False):
         
         handle.write("## pairs format v1.0\n")
@@ -159,10 +164,9 @@ class PairsGenerator:
                 handle.write(f'#chromsize: {chrom} {str(self.chrom_sizes[chrom])}\n')
         base_columns = "#columns: readID chrom1 pos1 chrom2 pos2 strand1 strand2 pair_type"
 
-        if self.variants and not artefacts:
-            base_columns += " phase0 phase1"# pair_type"
-        # else:
-        #     base_columns += " pair_type"
+        if self.read_phaser and not artefacts:
+            base_columns += " phase0 phase1"
+
             
         if self.full_pairs:
             base_columns += " rule reads contact_class multimap_overlap cut_site_locs"
@@ -209,73 +213,7 @@ class PairsGenerator:
 
         return False
 
-    def algn_phase(self, algn):
-
-        phase = "."
-        chrom = algn["chrom"]
-        start = algn["reference_start"]
-        end = algn["reference_end"]
-        
-        if chrom not in self.variants:
-            return phase
     
-        chrom_variants = self.variants[chrom]
-
-        snp_s = bisect_left(chrom_variants, start, key=lambda x : x["pos"])
-        snp_e = bisect_right(chrom_variants, end, key=lambda x : x["pos"])
-
-        overlap_variants = chrom_variants[snp_s:snp_e]
-
-        if len(overlap_variants) == 0:
-            return phase
-
-        read = algn["read"]
-        cigartuples = read.cigartuples
-        seq = read.query_sequence
-        qual = read.query_qualities
-        qual_seq_agree = len(seq) == len(qual)
-        #print(cigartuples)
-        
-        x = start
-        y = 0
-
-        a1 = 0
-        a2 = 0
-
-        for cig in cigartuples:
-            op = cig[0]
-            length = cig[1]
-            if op == 0: # M
-                for i in range(len(overlap_variants)):
-                    v = overlap_variants[i]
-                    #print(v)
-                    pos = v["pos"]
-                    if x <= pos and pos < x + length:
-                        pos = pos -x + y
-                        nt = seq[pos]
-                        #print(nt)
-                        q = qual[pos] if qual_seq_agree else self.min_base_quality
-                        if q >= self.min_base_quality:
-                            if nt == v["a1"]:
-                                a1 += 1
-                            elif nt == v["a2"]:
-                                a2 += 1
-                x += length
-                y += length
-            elif op == 1: # I
-                y += length
-            elif op == 2: # D
-                x += length
-            elif op == 4: # S
-                y += length
-
-        if a1 > 0 and a2 == 0:
-            phase = "0"
-        elif a1 == 0 and a2 > 0:
-            phase = "1"
-        
-        return phase
-                
     def classify_pair(self, algn1,algn2, pair_index,
                          R1_trimmer,R2_trimmer,rule):
 
@@ -316,10 +254,10 @@ class PairsGenerator:
                     ct = R1_cs_classes[cs_key]
                     overlap = R1_overlap_keys[cs_key]
                     cs_locs = R1_cs_keys[cs_key]
-            # Pairtools reports 3' fragment before 5' fragment
+            # Pairtools reports 5' fragment before 3' fragment
             elif contact_reads == "R2": 
-                idx5 = algn2["idx"]
-                idx3 = algn1["idx"]
+                idx5 = algn1["idx"]
+                idx3 = algn2["idx"]
                 cs_key = (idx5, idx3)
                 
                 if cs_key not in R2_cs_classes:
@@ -342,7 +280,8 @@ class PairsGenerator:
                 else:
                     ct = "artefact_gap"
                     
-        elif algn1["type"] == "R":
+        #elif algn1["type"] == "R":
+        elif contact_reads == "R2_rescue":
             if (0, 1) not in R2_cs_classes:
                 ct = "artefact_chimera"
             elif R2_cs_classes[(0, 1)] == "artefact":
@@ -353,7 +292,8 @@ class PairsGenerator:
                 ct = R2_cs_classes[(0, 1)]
                 overlap = R2_overlap_keys[(0, 1)]
                 cs_locs = R2_cs_keys[(0, 1)]
-        elif algn2["type"] == "R":
+        #elif algn2["type"] == "R":
+        elif contact_reads == "R1_rescue":
             if (0, 1) not in R1_cs_classes:
                 ct = "artefact_chimera"
             elif R1_cs_classes[(0, 1)] == "artefact":
@@ -414,17 +354,31 @@ class PairsGenerator:
         algn2_blk = self.algn_in_blacklist(pair.algn2)
 
         if algn1_blk or algn2_blk:
-            # print(f"{pair.readID} had blacklist overlap!")
-            # print(f"{pair.chrom1} {pair.algn1['reference_start']} {pair.algn1['reference_end']}")
-            # print(f"{pair.chrom2} {pair.algn2['reference_start']} {pair.algn2['reference_end']}")
             
             pair.passed_filters = True
 
     def phase_pair(self, pair):
 
-        phase1 = self.algn_phase(pair.algn1)
-        phase2 = self.algn_phase(pair.algn2)
+        read1 = pair.algn1["read"]
+        read2 = pair.algn2["read"]
 
+        if read1.has_tag("ZP"):
+            tag1 = read1.get_tag("ZP").split(",")
+            phase1 = tag1[-1]
+            status1 = tag1[0]
+        else:
+            phase1, status1, _, _, _ = self.read_phaser.phase_read(read1)
+         
+        if read2.has_tag("ZP"):
+            tag2 = read2.get_tag("ZP").split(",")
+            phase2 = tag2[-1]
+            status2 = tag2[0]
+        else:
+            phase2, status2, _, _, _ = self.read_phaser.phase_read(read2)
+
+        self.phase_stats[PairsGenerator.bam_status[status1]] += 1
+        self.phase_stats[PairsGenerator.bam_status[status2]] += 1
+        
         pair.add_phase(phase1, phase2)
 
     def metadata_pair(self, pair):
@@ -444,8 +398,6 @@ class PairsGenerator:
             funcs.append(self.blacklist_pair)
         if self.chrom_regex:
             funcs.append(self.chrom_regex_pair)
-        #if self.variants:
-        #    funcs.append(self.phase_pair)
         if self.full_pairs:
             funcs.append(self.metadata_pair)
         if self.remove_all:
@@ -460,7 +412,7 @@ class PairsGenerator:
             funcs.append(self.blacklist_pair)
         if self.chrom_regex:
             funcs.append(self.chrom_regex_pair)
-        if self.variants:
+        if self.read_phaser:
             funcs.append(self.phase_pair)
         if self.full_pairs:
             funcs.append(self.metadata_pair)
@@ -475,9 +427,7 @@ class PairsGenerator:
 
         if ct == "na":
             return
-        #print(ct, overlap, cs_locs, readID)
         pair = Pair(algn1, algn2, readID, ct, overlap, rule, cs_locs, pair_index, self.chrom_orders, self.flip_pairs)
-        #print(pair.pair_class)
         if pair.pair_class == "artefact":
                 
             for filter in self.artefact_funcs:
@@ -490,12 +440,9 @@ class PairsGenerator:
 
             for filter in self.contact_funcs:
                 filter(pair)
-                #print(filter)
-                #print(pair.passed_filters)
 
             if pair.passed_filters:
                 self.contacts.write(str(pair))
-        
         
     def __init__(self, 
                  contacts_path, 
@@ -506,8 +453,7 @@ class PairsGenerator:
                  blacklist=None,
                  min_blacklist_overlap_length=1,
                  min_blacklist_overlap_ratio=0.5,
-                 variants=None,
-                 min_base_quality=20,
+                 read_phaser=None,
                  remove_all=True,
                  full_pairs=False,
                  flip_pairs=False,
@@ -529,9 +475,8 @@ class PairsGenerator:
         self.blacklist = blacklist
         self.min_blacklist_overlap_length = min_blacklist_overlap_length
         self.min_blacklist_overlap_ratio = min_blacklist_overlap_ratio
-        
-        self.variants = variants
-        self.min_base_quality = min_base_quality
+
+        self.read_phaser = read_phaser
         
         self.remove_all = remove_all
         self.full_pairs = full_pairs
@@ -543,6 +488,10 @@ class PairsGenerator:
         self.min_same_strand_dist = min_same_strand_dist
         self.max_cut_site_whole_algn_dist = max_cut_site_whole_algn_dist
 
+        self.phase_stats = {"alignments_with_conflicting_phase" : 0,
+                            "alignments_with_phase" : 0,
+                            "alignments_without_phase": 0}
+        
         self.build_contact_funcs()
         self.build_artefact_funcs()
         
@@ -558,91 +507,3 @@ class PairsGenerator:
         self.artefacts.close()
         self.contacts.close()
         
-
-class PairsGeneratorBisulfite(PairsGenerator):
-        
-    def algn_phase(self, algn):
-        
-        phase = "."
-        chrom = algn["chrom"]
-        start = algn["reference_start"]
-        end = algn["reference_end"]
-        
-        if chrom not in self.variants:
-            return phase
-    
-        chrom_variants = self.variants[chrom]
-
-        snp_s = bisect_left(chrom_variants, start, key=lambda x : x["pos"])
-        snp_e = bisect_right(chrom_variants, end, key=lambda x : x["pos"])
-
-        overlap_variants = chrom_variants[snp_s:snp_e]
-
-        if len(overlap_variants) == 0:
-           return phase
-
-        read = algn["read"]
-        cigartuples = read.cigartuples
-        seq = read.query_sequence
-        qual = read.query_qualities
-        qual_seq_agree = len(seq) == len(qual)
-        ref_seq = read.get_reference_sequence().upper()
-        direction = read.get_tag("YD")
-        
-        x = start
-        y = 0
-
-        rx = start
-        ry = 0
-
-        a1 = 0
-        a2 = 0
-
-        for cig in cigartuples:
-            op = cig[0]
-            length = cig[1]
-            if op == 0: # M
-                
-                for i in range(len(overlap_variants)):
-                    v = overlap_variants[i]
-                    pos = v["pos"]
-                    
-                    if (x <= pos < x + length) and (rx <= pos < rx + length):
-                        qpos = pos - x + y
-                        qnt = seq[qpos]
-                        
-                        rpos = pos - rx + ry
-                        rnt = ref_seq[rpos]
-
-                        if direction == "f":
-                            if rnt == "C" and qnt == "T":
-                                continue
-                        elif direction == "r":
-                            if rnt == "G" and qnt == "A":
-                                continue
-
-                        q = qual[qpos] if qual_seq_agree else self.min_base_quality
-                        if q >= self.min_base_quality:
-                            if qnt == v["a1"]:
-                                a1 += 1
-                            elif qnt == v["a2"]:
-                                a2 += 1
-                                
-                x += length
-                y += length
-                rx += length
-                ry += length
-                
-            elif op == 1: # I
-                y += length
-            elif op == 2: # D
-                x += length
-            elif op == 4: # S
-                y += length
-
-        if a1 > 0 and a2 == 0:
-            phase = "0"
-        elif a1 == 0 and a2 > 0:
-            phase = "1"
-        
-        return phase

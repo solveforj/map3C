@@ -9,7 +9,7 @@ if trim_output == "interleaved":
         threads: 
             config["align"]["align_params"]["bwa"]["threads"]
         params:
-            reference_path=config["general"]["reference_path"],
+            reference_path=config["align"]["align_params"]["bwa"]["reference_path"],
             extra=config["align"]["align_params"]["bwa"]["joint_params"]
         conda:
             "map3C_utils"
@@ -33,7 +33,7 @@ elif trim_output == "separate" and not joint_alignments:
         threads: 
             config["align"]["align_params"]["bwa"]["threads"]
         params:
-            reference_path=config["general"]["reference_path"],
+            reference_path=config["align"]["align_params"]["bwa"]["reference_path"],
             extra=config["align"]["align_params"]["bwa"]["separate_R1_params"]
         conda:
             "map3C_utils"
@@ -51,7 +51,7 @@ elif trim_output == "separate" and not joint_alignments:
         threads: 
             config["align"]["align_params"]["bwa"]["threads"]
         params:
-            reference_path=config["general"]["reference_path"],
+            reference_path=config["align"]["align_params"]["bwa"]["reference_path"],
             extra=config["align"]["align_params"]["bwa"]["separate_R2_params"]
         conda:
             "map3C_utils"
@@ -76,7 +76,7 @@ elif trim_output == "separate" and joint_alignments:
         threads: 
             config["align"]["align_params"]["bwa"]["threads"]
         params:
-            reference_path=config["general"]["reference_path"],
+            reference_path=config["align"]["align_params"]["bwa"]["reference_path"],
             extra=config["align"]["align_params"]["bwa"]["joint_params"]
         conda:
             "map3C_utils"

@@ -25,6 +25,7 @@ if lowcov_done:
     last_contacts_step = "lowcov"
     contacts = "{id}_contacts.dedup.lowcov.pairs.gz"
     artefacts = "{id}_artefacts.dedup.pairs.gz"
+    highcov = "{id}_artefacts.dedup.highcov.pairs.gz"
 
 if mode == "bsdna":
     
@@ -47,7 +48,12 @@ if mode == "bsdna":
             # Contacts
             expand(contacts, id=run_info.index),
             # Artefacts
-            expand(artefacts, id=run_info.index)
+            expand(artefacts, id=run_info.index),
+            # Highcov artefacts
+            (expand(highcov, id=run_info.index)
+             if config["contacts"]["lowcov"]["keep_highcov"] and lowcov_done
+             else [])
+            
 
 if mode == "dna":
     
@@ -60,7 +66,11 @@ if mode == "dna":
             # Contacts
             expand(contacts, id=run_info.index),
             # Artefacts
-            expand(artefacts, id=run_info.index)
+            expand(artefacts, id=run_info.index),
+            # Highcov artefacts
+            (expand(highcov, id=run_info.index)
+             if config["contacts"]["lowcov"]["keep_highcov"] and lowcov_done
+             else [])
 
 
 include: "rules/preprocess.smk"

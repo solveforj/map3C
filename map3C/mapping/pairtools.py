@@ -263,35 +263,10 @@ def format_pair(
     hic_algn1,
     hic_algn2,
     pair_index,
-    report_position="outer",
-    report_orientation="pair",
-    algn1_pos5=None,
-    algn1_pos3=None,
-    algn2_pos5=None,
-    algn2_pos3=None,
 ):
-    """
-    Return a triplet: pair of formatted alignments and pair_index in a walk
 
-    :param hic_algn1: Left alignment forming a pair
-    :param hic_algn2: Right alignment forming a pair
-    :param algns1: All left read alignments for formal reporting
-    :param algns2: All right read alignments for formal reporting
-    :param pair_index: Index of the pair
-    :param algn1_pos5: Replace reported 5'-position of the alignment 1 with this value
-    :param algn1_pos3: Replace reported 3'-position of the alignment 1 with this value
-    :param algn2_pos5: Replace reported 5'-position of the alignment 2 with this value
-    :param algn2_pos3: Replace reported 3'-position of the alignment 2 with this value
-
-    """
     # Make sure the original data is not modified:
     hic_algn1, hic_algn2 = dict(hic_algn1), dict(hic_algn2)
-
-    # Adjust the 5' and 3'-ends:
-    hic_algn1["pos5"] = algn1_pos5 if not algn1_pos5 is None else hic_algn1["pos5"]
-    hic_algn1["pos3"] = algn1_pos3 if not algn1_pos3 is None else hic_algn1["pos3"]
-    hic_algn2["pos5"] = algn2_pos5 if not algn2_pos5 is None else hic_algn2["pos5"]
-    hic_algn2["pos3"] = algn2_pos3 if not algn2_pos3 is None else hic_algn2["pos3"]
 
     hic_algn1["type"] = (
         "N"
@@ -309,54 +284,14 @@ def format_pair(
         else "U"
     )
 
-    # Change orientation and positioning of pair for reporting:
-    # AVAILABLE_REPORT_POSITION    = ["outer", "pair", "read", "walk"]
-    # AVAILABLE_REPORT_ORIENTATION = ["pair", "pair", "read", "walk"]
     pair_type = pair_index[1]
 
-    if report_orientation == "read":
-        pass
-    elif report_orientation == "walk":
-        if pair_type == "R2":
-            hic_algn1 = flip_orientation(hic_algn1)
-            hic_algn2 = flip_orientation(hic_algn2)
-        elif pair_type == "R1-2":
-            hic_algn2 = flip_orientation(hic_algn2)
-    elif report_orientation == "pair":
-        if pair_type == "R1" or pair_type == "R1&R2":
-            hic_algn2 = flip_orientation(hic_algn2)
-        elif pair_type == "R2":
-            hic_algn1 = flip_orientation(hic_algn1)
-    elif report_orientation == "junction":
-        if pair_type == "R1" or pair_type == "R1&R2":
-            hic_algn1 = flip_orientation(hic_algn1)
-        elif pair_type == "R2":
-            hic_algn2 = flip_orientation(hic_algn2)
-        else:
-            hic_algn1 = flip_orientation(hic_algn1)
-            hic_algn2 = flip_orientation(hic_algn2)
-
-    if report_position == "read":
-        pass
-    elif report_position == "walk":
-        if pair_type == "R2":
-            hic_algn1 = flip_position(hic_algn1)
-            hic_algn2 = flip_position(hic_algn2)
-        elif pair_type == "R1-2":
-            hic_algn2 = flip_position(hic_algn2)
-    elif report_position == "outer":
-        if pair_type == "R1" or pair_type == "R1&R2":
-            hic_algn2 = flip_position(hic_algn2)
-        elif pair_type == "R2":
-            hic_algn1 = flip_position(hic_algn1)
-    elif report_position == "junction":
-        if pair_type == "R1" or pair_type == "R1&R2":
-            hic_algn1 = flip_position(hic_algn1)
-        elif pair_type == "R2":
-            hic_algn2 = flip_position(hic_algn2)
-        else:
-            hic_algn1 = flip_position(hic_algn1)
-            hic_algn2 = flip_position(hic_algn2)
+    if pair_type in ["R2", "R1", "R1&2"]:
+        hic_algn1["pos"] = hic_algn1["pos3"]
+        hic_algn2["pos"] = hic_algn2["pos5"]
+    elif pair_type == "R1-2":
+        hic_algn1["pos"] = hic_algn1["pos3"]
+        hic_algn2["pos"] = hic_algn2["pos3"]
 
     return [hic_algn1, hic_algn2, pair_index]
 
@@ -367,8 +302,6 @@ def parse_complex_walk(
     algns1,
     algns2,
     max_insert_size,
-    report_position="outer",
-    report_orientation="pair",
     dedup_max_mismatch=3,
 ):
     """
@@ -430,17 +363,17 @@ def parse_complex_walk(
                  If not, we do not have an overlap, go to step 3.
     """
 
-    AVAILABLE_REPORT_POSITION = ["outer", "junction", "read", "walk"]
-    assert report_position in AVAILABLE_REPORT_POSITION, (
-        f"Cannot report position {report_position}, as it is not implemented"
-        f'Available choices are: {", ".join(AVAILABLE_REPORT_POSITION)}'
-    )
+    # AVAILABLE_REPORT_POSITION = ["outer", "junction", "read", "walk"]
+    # assert report_position in AVAILABLE_REPORT_POSITION, (
+    #     f"Cannot report position {report_position}, as it is not implemented"
+    #     f'Available choices are: {", ".join(AVAILABLE_REPORT_POSITION)}'
+    # )
 
-    AVAILABLE_REPORT_ORIENTATION = ["pair", "junction", "read", "walk"]
-    assert report_orientation in AVAILABLE_REPORT_ORIENTATION, (
-        f"Cannot report orientation {report_orientation}, as it is not implemented"
-        f'Available choices are: {", ".join(AVAILABLE_REPORT_ORIENTATION)}'
-    )
+    # AVAILABLE_REPORT_ORIENTATION = ["pair", "junction", "read", "walk"]
+    # assert report_orientation in AVAILABLE_REPORT_ORIENTATION, (
+    #     f"Cannot report orientation {report_orientation}, as it is not implemented"
+    #     f'Available choices are: {", ".join(AVAILABLE_REPORT_ORIENTATION)}'
+    # )
 
     output_pairs = []
 
@@ -536,9 +469,6 @@ def parse_complex_walk(
                         algns1[-2],
                         algns1[-1],
                         pair_index=pair_index,
-                        algn2_pos3=algns2[-1]["pos5"],
-                        report_position=report_position,
-                        report_orientation=report_orientation,
                     )
                 )
                 last_reported_alignment_left = 2  # set the pointer for reporting
@@ -550,12 +480,9 @@ def parse_complex_walk(
                 pair_index = (len(algns1), "R2")
                 output_pairs.append(
                     format_pair(
-                        algns2[-1],
                         algns2[-2],
+                        algns2[-1],
                         pair_index=pair_index,
-                        algn1_pos3=algns1[-1]["pos5"],
-                        report_position=report_position,
-                        report_orientation=report_orientation,
                     )
                 )
                 last_reported_alignment_right = 2  # set the pointer for reporting
@@ -571,8 +498,6 @@ def parse_complex_walk(
                     algns1[-1],
                     algns2[-1],
                     pair_index=pair_index,
-                    report_position=report_position,
-                    report_orientation=report_orientation,
                 )
             )
 
@@ -594,8 +519,6 @@ def parse_complex_walk(
                 algns1[i],
                 algns1[i + 1],
                 pair_index=pair_index,
-                report_position=report_position,
-                report_orientation=report_orientation,
             )
         )
 
@@ -609,9 +532,6 @@ def parse_complex_walk(
                 algns1[idx_left],
                 algns1[idx_left + 1],
                 pair_index=pair_index,
-                algn2_pos3=algns2[idx_right - 1]["pos5"],
-                report_position=report_position,
-                report_orientation=report_orientation,
             )
         )
 
@@ -639,11 +559,13 @@ def parse_complex_walk(
         )
         output_pairs.append(
             format_pair(
-                algns2[i + 1],
                 algns2[i],
+                algns2[i+1],
+                #algns2[i + 1],
+                #algns2[i],
                 pair_index=pair_index,
-                report_position=report_position,
-                report_orientation=report_orientation,
+                #report_position=report_position,
+                #report_orientation=report_orientation,
             )
         )
 
@@ -822,18 +744,18 @@ def contact_iter(R1, R2, min_mapq=30, max_molecule_size=750, max_inter_align_gap
         rescued_linear_side = rescue_walk(R1_parsed, R2_parsed, max_molecule_size)
         # Walk was rescued as a simple walk:
         if rescued_linear_side == 1 and "gap" not in hic_algn1:
-            pair_index = (1, "R1")
-            output_iter = iter([(hic_algn1, hic_algn2, pair_index)])
+            pair_index = (1, "R1_rescue")
+            output_iter = iter([(hic_algn1, R1_parsed[1], pair_index)])
+            #output_iter = iter([(hic_algn1, hic_algn2, pair_index)])
         elif rescued_linear_side == 2 and "gap" not in hic_algn2:
-            pair_index = (1, "R2")
-            output_iter = iter([(hic_algn1, hic_algn2, pair_index)])
+            pair_index = (1, "R2_rescue")
+            output_iter = iter([(hic_algn2, R2_parsed[1], pair_index)])
+            #output_iter = iter([(hic_algn1, hic_algn2, pair_index)])
         # Walk is unrescuable:
         else:
             rule = "all"
             output_iter = parse_complex_walk(
                     R1_parsed,
                     R2_parsed,
-                    max_molecule_size,
-                    report_position="outer",
-                    report_orientation="pair")
+                    max_molecule_size)
     return output_iter, rule 

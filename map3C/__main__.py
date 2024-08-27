@@ -124,8 +124,17 @@ def call_contacts_register_subparser(subparser):
     parser_req.add_argument('--chrom-sizes', type=str, default=None, required=True,
                             help='Path to chromosome sizes file')
 
-    parser_req.add_argument('--restriction-sites', type=str, nargs="+", default=[], required=True,
-                            help='Paths to restriction sites files')
+    parser_req.add_argument('--reference-name', type=str, default=None, required=True,
+                            help='Name of reference genome (i.e. hg38 or mm10)')
+
+    parser_req.add_argument('--restriction-sites', type=str, action="append", nargs="+", default=[], required=True,
+                            help="""Paths to restriction sites files. For multiple files, either list sequentially separated by 
+                                    spaces or specify this argument multiple times followed by one file.""")
+
+    parser_req.add_argument('--restriction-enzymes', type=str, action="append", nargs="+", default=[], required=True,
+                            help="""Names of restriction enzymes. For multiple enzymes, either list sequentially separated by 
+                                    spaces or specify this argument multiple times followed by one enzyme. Should be in same order
+                                    as --restriction-sites argument.""")
 
     parser_opt = parser.add_argument_group("optional arguments")
     
@@ -143,10 +152,10 @@ def call_contacts_register_subparser(subparser):
                               convert otherwise linear alignments into walks, and affect how they get reported 
                               as a Hi-C pair (Pairtools parameter)""")
 
-    parser_opt.add_argument('--trim-method', type=str, default="winner", choices=['winner', 'complete'],
+    parser_opt.add_argument('--trim-method', type=str, default="winner", choices=['winner', 'complete', 'none'],
                         help="""Winner will replace multimapping between split alignments with alignment from read with higher MAPQ 
                                 (if MAPQ tied, use alignment with longer length). Complete is more conservative, removing multimapped 
-                                region from both split alignments.""")
+                                region from both split alignments. None does not remove multimapped regions.""")
     
     parser_opt.add_argument('--trim-reporting', type=str, default="minimal", choices=['minimal', 'full'],
                             help="""If set, output BAM files have 4 extra tags for split alignments. ZU and ZD report the 
@@ -214,6 +223,10 @@ def call_contacts_register_subparser(subparser):
     parser_opt.add_argument('--no-flip', action="store_true",
                             help="""If set, then contacts and artefacts will be left in their original orientation. By default, they are flipped to
                                     create an upper triangular contact matrix.""")
+
+    parser_opt.add_argument('--phase-alignments', action="store_true",
+                            help="""If set, then all reported alignments will be phased.
+                                    """)
 
 
 def mask_overlaps_register_subparser(subparser):
@@ -334,6 +347,25 @@ def aggregate_qc_stats_register_subparser(subparser):
 
     parser_opt.add_argument('--min-base-quality', type=int, default=20,
                             help='Minimum base quality for including aligned nucleotides')
+
+def restriction_sites_register_subparser(subparser):
+    parser = subparser.add_parser('restriction-sites',
+                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+                                  help="""
+                                        Identify restriction enzyme cut sites for a reference genome.
+                                        """
+                                 )
+    # Required arguments
+    parser_req = parser.add_argument_group("required arguments")
+    
+    parser_req.add_argument('--cut-seqs', type=str, default=[], nargs='+', required=True,
+                            help='Cut site sequence for enzyme')
+                            
+    parser_req.add_argument('--reference', type=str, default=None, required=True,
+                            help='Path to reference genome FASTA')
+
+    parser_req.add_argument('--output', type=str, default=None, required=True,
+                        help='Full path to output file')
     
 
 def main():
@@ -396,6 +428,8 @@ def main():
         from .mapping import bam_to_allc as func
     elif cur_command in ['aggregate-qc-stats']:
         from .mapping import aggregate_qc_stats as func
+    elif cur_command in ['restriction-sites']:
+        from .mapping import ComputeRestrictionSites as func
     else:
         log.debug(f'{cur_command} is not an valid sub-command')
         parser.parse_args(["-h"])

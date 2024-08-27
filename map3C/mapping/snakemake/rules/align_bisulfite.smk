@@ -11,7 +11,7 @@ if trim_output == "interleaved":
         threads: 
             config["align"]["align_params"]["biscuit"]["threads"]
         params:
-            reference_path=config["general"]["reference_path"],
+            reference_path=config["align"]["align_params"]["biscuit"]["reference_path"],
             extra=config["align"]["align_params"]["biscuit"]["joint_params"]
         conda:
             "map3C_utils"
@@ -32,7 +32,7 @@ elif trim_output == "separate" and not joint_alignments:
         threads: 
             config["align"]["align_params"]["biscuit"]["threads"]
         params:
-            reference_path=config["general"]["reference_path"],
+            reference_path=config["align"]["align_params"]["biscuit"]["reference_path"],
             extra=config["align"]["align_params"]["biscuit"]["separate_R1_params"]
         conda:
             "map3C_utils"
@@ -51,7 +51,7 @@ elif trim_output == "separate" and not joint_alignments:
         threads: 
             config["align"]["align_params"]["biscuit"]["threads"]
         params:
-            reference_path=config["general"]["reference_path"],
+            reference_path=config["align"]["align_params"]["biscuit"]["reference_path"],
             extra=config["align"]["align_params"]["biscuit"]["separate_R2_params"]
         conda:
             "map3C_utils"
@@ -73,7 +73,7 @@ elif trim_output == "separate" and not joint_alignments:
             threads:
                 1
             params:
-                reference_path=config["general"]["reference_path"]
+                reference_path=config["align"]["align_params"]["biscuit"]["reference_path"]
             conda:
                 "map3C_utils"
             shell:
@@ -89,7 +89,7 @@ elif trim_output == "separate" and not joint_alignments:
             threads:
                 1
             params:
-                reference_path=config["general"]["reference_path"]
+                reference_path=config["align"]["align_params"]["biscuit"]["reference_path"]
             conda:
                 "map3C_utils"
             shell:
@@ -117,7 +117,7 @@ elif trim_output == "separate" and joint_alignments:
         threads: 
             config["align"]["align_params"]["biscuit"]["threads"]
         params:
-            reference_path=config["general"]["reference_path"],
+            reference_path=config["align"]["align_params"]["biscuit"]["reference_path"],
             extra=config["align"]["align_params"]["biscuit"]["joint_params"]
         conda:
             "map3C_utils"
@@ -140,7 +140,7 @@ if (trim_output == "interleaved") or (trim_output == "separate" and joint_alignm
             threads:
                 1
             params:
-                reference_path=config["general"]["reference_path"]
+                reference_path=config["align"]["align_params"]["biscuit"]["reference_path"]
             conda:
                 "map3C_utils"
             shell:

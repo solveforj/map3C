@@ -10,7 +10,6 @@ rule dedup_contacts:
         ),
         stats = temp("{id}_contacts_dedup_stats.txt")
     params:
-        chrom_sizes=config["general"]["chrom_sizes"],
         extra=config["contacts"]["dedup"]["dedup_params"]
     conda:
         "map3C_utils"
@@ -32,7 +31,6 @@ rule dedup_artefacts:
         ),
         stats = temp("{id}_artefacts_dedup_stats.txt")
     params:
-        chrom_sizes=config["general"]["chrom_sizes"],
         extra=config["contacts"]["dedup"]["dedup_params"]
     conda:
         "map3C_utils"

@@ -14,14 +14,13 @@ rng = np.random.default_rng(1)
 def process_chrom_sizes(chrom_sizes_file):
     chrom_sizes = {}
 
-    genome = os.path.basename(chrom_sizes_file).split(".")[0]
     with open(chrom_sizes_file) as csf:
         for line in csf:
             line = line.strip().split()
             chrom = line[0]
             size = int(line[1])
             chrom_sizes[chrom] = size
-    return chrom_sizes, genome
+    return chrom_sizes
 
 def process_chrom_orders(chrom_sizes_file):
     chrom_orders = {}
@@ -38,8 +37,8 @@ def process_chrom_orders(chrom_sizes_file):
 def process_bed(bed):
     bed_dict = {}
 
-    if not os.path.isfile(bed):
-        return None
+    #if not os.path.isfile(bed):
+    #    raise Exception("Provided BED file path does not exist")
             
     if bed.endswith(".gz"):
         f = gzip.open(bed, 'rt')
@@ -64,8 +63,11 @@ def process_variants(snps):
     
     snp_dict = {}
 
-    if not os.path.isfile(snps):
-        return None
+    #if not os.path.isfile(snps):
+    #    raise Exception("Provided variants file path does not exist")
+
+    #if not os.path.isfile(snps):
+    #    raise Exception("Provided variants file path does not exist")
 
     if snps.endswith(".gz"):
         f = gzip.open(snps, 'rt')
@@ -87,12 +89,17 @@ def process_variants(snps):
     return snp_dict
             
     
-def process_restriction_sites(restriction_sites):
+def process_restriction_sites(restriction_sites, restriction_enzymes):
 
     restriction_sites_dict = {}
-
-    for file in restriction_sites:
-        enzyme = os.path.basename(file).split("_")[-1].split(".txt")[0]
+    restriction_sites = sum(restriction_sites, [])
+    restriction_enzymes = sum(restriction_enzymes, [])
+    print(restriction_sites)
+    print(restriction_enzymes)
+    for i in range(len(restriction_sites)):
+        file = restriction_sites[i]
+        enzyme = restriction_enzymes[i]
+        #enzyme = os.path.basename(file).split("_")[-1].split(".txt")[0]
         restriction_sites_dict[enzyme] = {}
         with open(file) as f:
             for line in f:
@@ -183,6 +190,8 @@ class PairsStats:
                         self.pairs_stats.update({
                             f"{self.prefix}_R1" : 0,
                             f"{self.prefix}_R2" : 0,
+                            f"{self.prefix}_R1_rescue" : 0,
+                            f"{self.prefix}_R2_rescue" : 0,
                             f"{self.prefix}_R1-2" : 0,
                             f"{self.prefix}_R1&2" : 0,
                             f"{self.prefix}_UU_all" : 0,
@@ -359,6 +368,5 @@ def aggregate_qc_stats(job,
 
     out_file = f"{out_prefix}_qc_stats.txt"
 
-    all_stats.to_csv(out_file, sep="\t", header=False)
-
+    all_stats.to_csv(out_file, sep="\t", header=False)    
     

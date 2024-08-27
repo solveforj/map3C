@@ -22,14 +22,10 @@ rule generate_contacts:
         stats=temp("{id}_alignment_stats.txt")
     params:
         out_prefix=lambda wildcards: f"{wildcards.id}",
-        chrom_sizes=config["general"]["chrom_sizes"],
-        restriction_sites=config["contacts"]["call"]["restriction_sites"],
         extra=config["contacts"]["call"]["call_params"],
         manual_mate_annotation=('--manual-mate-annotation ' 
                                 if trim_output == "separate" and not joint_alignments 
                                 else ''),
-        blacklist=config['contacts']['call']['blacklist'],
-        variants=config['contacts']['call']['variants'],
         read_type="wgs" if mode == "dna" else "bisulfite"
     conda:
         "map3C_tools"
@@ -39,12 +35,8 @@ rule generate_contacts:
         'map3C call-contacts '
         '--bam {input} '
         '--out-prefix {params.out_prefix} '
-        '--chrom-sizes {params.chrom_sizes} '
-        '--restriction-sites {params.restriction_sites} '
         '--read-type {params.read_type} '
         '{params.manual_mate_annotation} '
-        '--blacklist {params.blacklist} '
-        '--variants {params.variants} '
         '{params.extra} '
 
 def get_pairs_data(wildcards):

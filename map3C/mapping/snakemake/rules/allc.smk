@@ -8,7 +8,7 @@ rule bam_to_allc:
         stats = "{id}.allc.tsv.gz.count.csv",
         methylation_stats = temp("{id}.allc.tsv.gz_methylation_stats.txt")
     params:
-        reference_fasta=config["general"]["reference_path"],
+        reference_fasta=config["align"]["align_params"]["biscuit"]["reference_path"],
         extra=config["read_analysis"]["allc"]["allc_params"]
     conda:
         "map3C_tools"

@@ -7,6 +7,7 @@ from .utils import *
 from .pairtools import *
 from .pairs_generator import *
 from .read_trimmer import *
+from .phase import *
 
 def divide_reads_default(read_group):
     
@@ -162,8 +163,68 @@ def remove_illegal_overlap(seg_keys):
 
     return filtered_seg_keys, removed_keys
     
-
 class ContactGenerator:
+    
+    def add_cs_tags(self, **kwargs):
+        
+        read = kwargs['read_data']["trimmed_read"]
+        key = kwargs['key']
+        cs_labels = kwargs['cs_labels']
+        
+        if key in cs_labels:
+            cs_label = cs_labels[key]
+            if len(cs_label) == 0:
+                read.set_tag("ZL", "N")
+            elif len(cs_label) == 1:
+                read.set_tag("ZL", cs_label[0])
+            elif cs_label == ["D", "U"] or cs_label == ["U", "D"]:
+                read.set_tag("ZL", "B")
+
+    def add_phase_tags(self, **kwargs):
+
+        trim = kwargs["read_data"]["trimmed_read"]
+        pre_trim = kwargs["read_data"]["read"]
+        is_trimmed = kwargs["read_data"]["is_trimmed"]
+        
+        phase_t, status_t, eval_snps_t, a1_t, a2_t = self.read_phaser.phase_read(trim)
+
+        trim.set_tag("ZP", f"{status_t},{eval_snps_t},{a1_t},{a2_t},{phase_t}", value_type="Z")
+        
+        if is_trimmed:
+            phase_pt, status_pt, eval_snps_pt, a1_pt, a2_pt = self.read_phaser.phase_read(pre_trim)
+            trim.set_tag("ZQ", f"{status_pt},{eval_snps_pt},{a1_pt},{a2_pt},{phase_pt}", value_type="Z")
+    
+    def tag_and_write_ordered_reads(self, ordered_reads, cs_labels, primary, has_split, primary_unique, mate):
+
+        # dupsifter marks all secondary alignments as duplicate if primary alignment is duplicate
+        if not primary.is_duplicate:
+            if has_split:
+                self.stats_dict[f"{mate}_split_aligned_mates_dedup"] += 1
+            else:
+                self.stats_dict[f"{mate}_whole_aligned_mates_dedup"] += 1
+
+            # Read is split, but primary alignment will not be included in processed mates
+            if has_split and not primary_unique:
+                self.bam_out.write(primary)
+
+        if has_split:
+            self.stats_dict[f"{mate}_split_aligned_mates_dup"] += 1
+        else:
+            self.stats_dict[f"{mate}_whole_aligned_mates_dup"] += 1
+
+        for i in ordered_reads:
+            read = ordered_reads[i]["trimmed_read"]
+            if not read.is_duplicate:
+                
+                self.stats_dict[f"{mate}_total_alignments_dedup"] += 1
+                
+                for func in self.tag_funcs:
+                    func(read_data = ordered_reads[i], key=i, cs_labels=cs_labels)
+                
+                self.bam_out.write(read)
+                
+            self.stats_dict[f"{mate}_total_alignments_dup"] += 1
+                
         
     def process_mate(self, all_alignments, primary_alignment, mate, read_group_name):
 
@@ -207,7 +268,6 @@ class ContactGenerator:
                                    self.header,
                                    self.full_bam,
                                    self.trim_method,
-                                   #mate,
                                    self.bisulfite,
                                    self.max_cut_site_split_algn_dist,
                                    self.max_cut_site_whole_algn_dist
@@ -243,7 +303,6 @@ class ContactGenerator:
         R2_cs_labels = R2_trimmer.cut_site_labels
         R2_has_split = R2_trimmer.has_split
 
-
         self.total_chimera_pairs += R1_trimmer.total_pairs
         self.total_chimera_pairs += R2_trimmer.total_pairs
         
@@ -259,7 +318,11 @@ class ContactGenerator:
         if len(R1) + len(R2) >= 2:
             self.at_least_two_alignments += 1
 
-            
+        if len(R1) > 0:
+            self.tag_and_write_ordered_reads(R1, R1_cs_labels, r1_primary, R1_has_split, r1_primary_unique, "R1")
+        if len(R2) > 0:
+            self.tag_and_write_ordered_reads(R2, R2_cs_labels, r2_primary, R2_has_split, r2_primary_unique, "R2")
+
         contacts, rule = contact_iter(R1, R2, min_mapq=self.min_mapq, 
                                       max_molecule_size=self.max_molecule_size, 
                                       max_inter_align_gap=self.max_inter_align_gap)
@@ -267,77 +330,6 @@ class ContactGenerator:
         for (hic_algn1, hic_algn2, pair_index) in contacts:
 
             self.pairs_gen.write_pairs(hic_algn1, hic_algn2, read_group_name, pair_index, R1_trimmer, R2_trimmer, rule)
-
-        # dupsifter marks all secondary alignments as duplicate if primary alignment is duplicate
-        
-        # Write R1 reads
-        if len(R1) > 0:
-            if not r1_primary.is_duplicate:
-                if R1_has_split:
-                    self.r1_split_alignments_dedup += 1
-                else:
-                    self.r1_whole_alignments_dedup += 1
-    
-                # Read is split, but primary alignment will not be included in processed mates
-                if R1_has_split and not r1_primary_unique:
-                    bam_out.write(r1_primary)
-
-            if R1_has_split:
-                self.r1_split_alignments_dup += 1
-            else:
-                self.r1_whole_alignments_dup += 1
-
-            for i in R1:
-                read = R1[i]["trimmed_read"]
-                if not read.is_duplicate:
-                    self.r1_total_alignments_dedup += 1
-                    if self.full_bam:
-                        if i in R1_cs_labels:
-                            cs_label = R1_cs_labels[i]
-                            if len(cs_label) == 0:
-                                read.set_tag("ZL", "N")
-                            elif len(cs_label) == 1:
-                                read.set_tag("ZL", cs_label[0])
-                            elif cs_label == ["D", "U"] or cs_label == ["U", "D"]:
-                                read.set_tag("ZL", "B")
-                                
-                    bam_out.write(read)
-                
-                self.r1_total_alignments_dup += 1
-
-        # Write R2 reads
-        if len(R2) > 0:
-            if not r2_primary.is_duplicate:
-                if R2_has_split:
-                    self.r2_split_alignments_dedup += 1
-                else:
-                    self.r2_whole_alignments_dedup += 1
-    
-                # Read is split, but primary alignment will not be included in processed mates
-                if R2_has_split and not r2_primary_unique:
-                    bam_out.write(r2_primary)
-
-            if R2_has_split:
-                self.r2_split_alignments_dup += 1
-            else:
-                self.r2_whole_alignments_dup += 1
-
-            for i in R2:
-                read = R2[i]["trimmed_read"]
-                if not read.is_duplicate:
-                    self.r2_total_alignments_dedup += 1
-                    if self.full_bam:
-                        if i in R2_cs_labels:
-                            cs_label = R2_cs_labels[i]
-                            if len(cs_label) == 1:
-                                read.set_tag("ZL", cs_label[0])
-                            elif len(cs_label) == 2:
-                                read.set_tag("ZL", "B")
-                            else:
-                                read.set_tag("ZL", "N")
-                    bam_out.write(read)
-
-                self.r2_total_alignments_dup += 1
    
     def process_bam(self):
 
@@ -346,26 +338,32 @@ class ContactGenerator:
         self.illegal_post_trim_count = 0
         self.at_least_two_alignments = 0
         
-        self.r1_total_alignments_dup = 0
-        self.r1_whole_alignments_dup = 0
-        self.r1_split_alignments_dup = 0
-
-        self.r1_total_alignments_dedup = 0
-        self.r1_whole_alignments_dedup = 0
-        self.r1_split_alignments_dedup = 0
-        
-        self.r2_total_alignments_dup = 0
-        self.r2_whole_alignments_dup = 0
-        self.r2_split_alignments_dup = 0
-
-        self.r2_total_alignments_dedup = 0
-        self.r2_whole_alignments_dedup = 0
-        self.r2_split_alignments_dedup = 0
-
         self.total_chimera_pairs = 0
         self.cut_site_chimera_pairs = 0
         self.first_trim = 0
         self.second_trim = 0
+        
+        self.stats_dict = {
+            "R1_total_alignments_dup" : 0,
+            "R1_whole_aligned_mates_dup" : 0,
+            "R1_split_aligned_mates_dup" : 0,
+            "R1_total_aligned_mates_dup" : 0,
+
+            "R1_total_alignments_dedup" : 0,
+            "R1_whole_aligned_mates_dedup" : 0,
+            "R1_split_aligned_mates_dedup" : 0,
+            "R1_total_aligned_mates_dedup" : 0,
+
+            "R2_total_alignments_dup" : 0,
+            "R2_whole_aligned_mates_dup" : 0,
+            "R2_split_aligned_mates_dup" : 0,
+            "R2_total_aligned_mates_dup" : 0,
+
+            "R2_total_alignments_dedup" : 0,
+            "R2_whole_aligned_mates_dedup" : 0,
+            "R2_split_aligned_mates_dedup" : 0,
+            "R2_total_aligned_mates_dedup" : 0,
+        }
         
         iter_count = 0
         read_group_name = None
@@ -374,25 +372,24 @@ class ContactGenerator:
         count = 0
         with pysam.AlignmentFile(self.bam, index_filename=None) as bam_in, \
             pysam.AlignmentFile(self.trimmed_bam, 'wb', template=bam_in) as bam_out, \
-            self.PairsGenerator(self.contacts, 
-                                self.chrom_sizes,
-                                self.chrom_orders,
-                                self.restriction_sites,
-                                self.artefacts, 
-                                self.blacklist,
-                                self.min_blacklist_overlap_length,
-                                self.min_blacklist_overlap_ratio,
-                                self.variants,
-                                self.min_base_quality,
-                                self.remove_all,
-                                self.full_pairs, 
-                                self.flip_reads,
-                                self.genome,
-                                self.chrom_regex, 
-                                self.min_inward_dist,
-                                self.min_outward_dist,
-                                self.min_same_strand_dist, 
-                                self.max_cut_site_whole_algn_dist) as self.pairs_gen:
+            PairsGenerator(self.contacts, 
+                           self.chrom_sizes,
+                           self.chrom_orders,
+                           self.restriction_sites,
+                           self.artefacts, 
+                           self.blacklist,
+                           self.min_blacklist_overlap_length,
+                           self.min_blacklist_overlap_ratio,
+                           self.read_phaser,
+                           self.remove_all,
+                           self.full_pairs, 
+                           self.flip_reads,
+                           self.genome,
+                           self.chrom_regex, 
+                           self.min_inward_dist,
+                           self.min_outward_dist,
+                           self.min_same_strand_dist,
+                           self.max_cut_site_whole_algn_dist) as self.pairs_gen:
                 
                 self.header = bam_in.header.to_dict()
                 self.bam_in = bam_in
@@ -416,49 +413,43 @@ class ContactGenerator:
 
                 self.process_read_group(read_group, read_group_name)
 
+                self.phase_stats = self.pairs_gen.phase_stats
+
     def generate_stats(self):
 
-        stats_dict = {
-            "R1_total_alignments_dup" : self.r1_total_alignments_dup,
-            "R1_whole_aligned_mates_dup" : self.r1_whole_alignments_dup,
-            "R1_split_aligned_mates_dup" : self.r1_split_alignments_dup,
-            "R1_total_aligned_mates_dup" : self.r1_split_alignments_dup +  self.r1_whole_alignments_dup,
+        self.stats_dict.update({
+            "R1_total_aligned_mates_dup" : self.stats_dict["R1_whole_aligned_mates_dup"] + self.stats_dict["R1_split_aligned_mates_dup"],
+            "R1_total_aligned_mates_dedup" : self.stats_dict["R1_whole_aligned_mates_dedup"] + self.stats_dict["R1_split_aligned_mates_dedup"],
 
-            "R1_total_alignments_dedup" : self.r1_total_alignments_dedup,
-            "R1_whole_aligned_mates_dedup" : self.r1_whole_alignments_dedup,
-            "R1_split_aligned_mates_dedup" : self.r1_split_alignments_dedup,
-            "R1_total_aligned_mates_dedup" : self.r1_split_alignments_dedup +  self.r1_whole_alignments_dedup,
-
-            "R2_total_alignments_dup" : self.r2_total_alignments_dup,
-            "R2_whole_aligned_mates_dup" : self.r2_whole_alignments_dup,
-            "R2_split_aligned_mates_dup" : self.r2_split_alignments_dup,
-            "R2_total_aligned_mates_dup" : self.r2_split_alignments_dup +  self.r2_whole_alignments_dup,
-            
-            "R2_total_alignments_dedup" : self.r2_total_alignments_dedup,
-            "R2_whole_aligned_mates_dedup" : self.r2_whole_alignments_dedup,
-            "R2_split_aligned_mates_dedup" : self.r2_split_alignments_dedup,
-            "R2_total_aligned_mates_dedup" : self.r2_split_alignments_dedup +  self.r2_whole_alignments_dedup,
+            "R2_total_aligned_mates_dup" : self.stats_dict["R2_whole_aligned_mates_dup"] + self.stats_dict["R2_split_aligned_mates_dup"],
+            "R2_total_aligned_mates_dedup" : self.stats_dict["R2_whole_aligned_mates_dup"] + self.stats_dict["R2_split_aligned_mates_dup"],
 
             "discarded_alignments_illegal_overlap" : self.illegal_overlap_alignments,
             "reads_with_illegal_overlap" : self.illegal_overlap_reads,
             "discarded_alignments_post_trim" : self.illegal_post_trim_count,
-            "pairs_with_multiple_valid_alignments" : self.at_least_two_alignments,
+            "read_pairs_with_multiple_valid_alignments" : self.at_least_two_alignments,
 
-            "split_alignment_pairs_total" : self.total_chimera_pairs,
-            "split_alignment_pairs_with_cut_site" : self.cut_site_chimera_pairs,
-            "split_alignment_pairs_first_trim" : self.first_trim,
-            "split_alignment_pairs_second_trim" : self.second_trim
+            "adjacent_split_alignment_total" : self.total_chimera_pairs,
+            "adjacent_split_alignment_with_cut_site" : self.cut_site_chimera_pairs,
+            "adjacent_split_alignment_first_trim" : self.first_trim,
+            "adjacent_split_alignment_second_trim" : self.second_trim,
 
-        }
-        
-        stats_df = pd.DataFrame.from_dict(stats_dict, orient="index").T
+        })
+
+        if self.variants:
+
+            self.stats_dict.update(self.phase_stats)
+            
+        stats_df = pd.DataFrame.from_dict(self.stats_dict, orient="index").T
         stats_df.to_csv(self.stats_path, index=False, sep="\t")
 
     def __init__(self, 
                  bam, 
                  out_prefix, 
                  chrom_sizes,
+                 reference_name,
                  restriction_sites,
+                 restriction_enzymes,
                  min_mapq=30, 
                  max_molecule_size=750, 
                  max_inter_align_gap=20,
@@ -466,6 +457,7 @@ class ContactGenerator:
                  trim_method="winner",
                  pairs_reporting="minimal",
                  variants=None,
+                 phase_alignments=False,
                  min_base_quality=20,
                  chrom_regex=None,
                  blacklist=None,
@@ -491,8 +483,13 @@ class ContactGenerator:
         self.min_same_strand_dist = min_same_strand_dist
 
         self.trim_method = trim_method
+
+        self.tag_funcs = []
         
         self.full_bam = trim_reporting == "full"
+        if self.full_bam:
+            self.tag_funcs.append(self.add_cs_tags)
+            
         self.full_pairs = pairs_reporting == "full"
         
         self.out_prefix = out_prefix
@@ -502,22 +499,25 @@ class ContactGenerator:
         self.max_cut_site_split_algn_dist = max_cut_site_split_algn_dist
         self.max_cut_site_whole_algn_dist = max_cut_site_whole_algn_dist
 
-        self.restriction_sites = process_restriction_sites(restriction_sites)
+        self.restriction_sites = process_restriction_sites(restriction_sites, restriction_enzymes)
         
         self.chrom_sizes_file = chrom_sizes
-        self.chrom_sizes, self.genome = process_chrom_sizes(chrom_sizes)
+        self.chrom_sizes = process_chrom_sizes(chrom_sizes)
+        self.genome = reference_name
         self.chrom_orders = process_chrom_orders(chrom_sizes)
 
+        self.variants = variants 
+        self.phase_alignments = phase_alignments
+        if self.phase_alignments:
+            self.tag_funcs.append(self.add_phase_tags)
+        
         if variants:
-            self.variants=process_variants(variants)
+            if self.bisulfite:
+                self.read_phaser = ReadPhaserBisulfite(variants, min_base_quality)
+            else:
+                self.read_phaser = ReadPhaser(variants, min_base_quality)
         else:
-            self.variants=None
-        self.min_base_quality = min_base_quality
-
-        if self.bisulfite:
-            self.PairsGenerator = PairsGeneratorBisulfite
-        else:
-            self.PairsGenerator = PairsGenerator
+            self.read_phaser = None
 
         self.flip_reads = not no_flip
         
