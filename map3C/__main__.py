@@ -163,18 +163,34 @@ def call_contacts_register_subparser(subparser):
                                     ZL reports if an alignment was determined to have a cut site at the 5' end (U), 3' 
                                     end (D), both (B), or neither (N)""")
     
-    parser_opt.add_argument('--min-inward-dist', type=int, default=1000,
+    parser_opt.add_argument('--min-inward-dist-contacts', type=int, default=1000,
                             help="""Minimum distance for intrachromosomal contacts with +/- strandedness 
                                     (downstream read/upstream read). Filters out WGS-like reads, such as those due 
                                     to dangling ends.""")
     
-    parser_opt.add_argument('--min-outward-dist', type=int, default=1000,
+    parser_opt.add_argument('--min-outward-dist-contacts', type=int, default=1000,
                             help="""Minimum distance for intrachromosomal contacts with -/+ strandedness 
                                     (downstream read/upstream read). Filters out self-ligations.""")
 
-    parser_opt.add_argument('--min-same-strand-dist', type=int, default=0,
+    parser_opt.add_argument('--min-same-strand-dist-contacts', type=int, default=0,
                             help="""Minimum distance for intrachromosomal contacts with +/+ or -/- strandedness 
                                     (downstream read/upstream read). Typically, no cutoff is needed for Hi-C/3C.""")
+
+    parser_opt.add_argument('--min-inward-dist-artefacts', type=int, default=1000,
+                            help="""Minimum distance for intrachromosomal artefacts with +/- strandedness 
+                                    (downstream read/upstream read).""")
+    
+    parser_opt.add_argument('--min-outward-dist-artefacts', type=int, default=1000,
+                            help="""Minimum distance for intrachromosomal artefacts with -/+ strandedness 
+                                    (downstream read/upstream read).""")
+
+    parser_opt.add_argument('--min-same-strand-dist-artefacts', type=int, default=0,
+                            help="""Minimum distance for intrachromosomal contacts with +/+ or -/- strandedness 
+                                    (downstream read/upstream read).""")
+
+    parser_opt.add_argument('--include-artefacts', action="store_true",
+                            help="""If set, artefacts and contacts are both reported in {out-prefix}_contacts.pairs.gz file. Artefacts will still be reported
+                                    separately in {out-prefix}_artefacts.pairs.gz file.""")
 
     parser_opt.add_argument('--read-type', type=str, default="bisulfite", choices=['bisulfite', 'wgs'],
                             help='Indicates that reads were bisulfite converted or not bisulfite converted (wgs)')

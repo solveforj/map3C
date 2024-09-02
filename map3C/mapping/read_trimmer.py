@@ -472,12 +472,12 @@ def gap_pair_to_restriction_site(read5, read3, restriction_sites, max_cut_site_d
     r5_rs = closest_restriction_site(read5.reference_name, 
                                      r5_pos, restriction_sites, rule=r5_rule) 
 
-    if read3.is_forward:
-        r3_rule = "upstream"
-        r3_pos = read3.reference_start
-    else:
+    if read3.is_forward:        
         r3_rule = "downstream"
         r3_pos = read3.reference_end
+    else:        
+        r3_rule = "upstream"
+        r3_pos = read3.reference_start
         
     r3_rs = closest_restriction_site(read3.reference_name, 
                                      r3_pos, restriction_sites, rule=r3_rule) 

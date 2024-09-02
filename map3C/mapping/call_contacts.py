@@ -386,9 +386,13 @@ class ContactGenerator:
                            self.flip_reads,
                            self.genome,
                            self.chrom_regex, 
-                           self.min_inward_dist,
-                           self.min_outward_dist,
-                           self.min_same_strand_dist,
+                           self.min_inward_dist_contacts,
+                           self.min_outward_dist_contacts,
+                           self.min_same_strand_dist_contacts,
+                           self.min_inward_dist_artefacts,
+                           self.min_outward_dist_artefacts,
+                           self.min_same_strand_dist_artefacts,
+                           self.include_artefacts,
                            self.max_cut_site_whole_algn_dist) as self.pairs_gen:
                 
                 self.header = bam_in.header.to_dict()
@@ -465,9 +469,13 @@ class ContactGenerator:
                  min_blacklist_overlap_ratio=0.5,
                  no_flip=False,
                  remove_all=False,
-                 min_inward_dist=1000,
-                 min_outward_dist=1000,
-                 min_same_strand_dist=0,
+                 min_inward_dist_contacts=1000,
+                 min_outward_dist_contacts=1000,
+                 min_same_strand_dist_contacts=0,
+                 min_inward_dist_artefacts=1000,
+                 min_outward_dist_artefacts=1000,
+                 min_same_strand_dist_artefacts=0,
+                 include_artefacts=False,
                  read_type="bisulfite",
                  manual_mate_annotation=False,
                  max_cut_site_split_algn_dist = 10,
@@ -478,9 +486,15 @@ class ContactGenerator:
         self.max_molecule_size = max_molecule_size
         self.max_inter_align_gap = max_inter_align_gap
 
-        self.min_inward_dist = min_inward_dist
-        self.min_outward_dist = min_outward_dist
-        self.min_same_strand_dist = min_same_strand_dist
+        self.min_inward_dist_contacts = min_inward_dist_contacts
+        self.min_outward_dist_contacts = min_outward_dist_contacts
+        self.min_same_strand_dist_contacts = min_same_strand_dist_contacts
+
+        self.min_inward_dist_artefacts = min_inward_dist_artefacts
+        self.min_outward_dist_artefacts = min_outward_dist_artefacts
+        self.min_same_strand_dist_artefacts = min_same_strand_dist_artefacts
+
+        self.include_artefacts = include_artefacts
 
         self.trim_method = trim_method
 

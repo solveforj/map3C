@@ -317,7 +317,7 @@ class PairsGenerator:
     
         return ct, overlap, cs_locs
 
-    def pair_is_intra_short(self, pair):
+    def contact_pair_is_intra_short(self, pair):
 
         algn1 = pair.algn1
         algn2 = pair.algn2
@@ -331,15 +331,39 @@ class PairsGenerator:
                 max_algn = algn1
     
             if max_algn["strand"] == min_algn["strand"]:
-                if (max_algn["pos"] - min_algn["pos"]) < self.min_same_strand_dist:
+                if (max_algn["pos"] - min_algn["pos"]) < self.min_same_strand_dist_contacts:
                     pair.passed_filters = False
             elif min_algn["strand"] == "+":
-                if (max_algn["pos"] - min_algn["pos"]) < self.min_inward_dist:
+                if (max_algn["pos"] - min_algn["pos"]) < self.min_inward_dist_contacts:
                     pair.passed_filters = False
             elif min_algn["strand"] == "-":
-                if (max_algn["pos"] - min_algn["pos"]) < self.min_outward_dist:
+                if (max_algn["pos"] - min_algn["pos"]) < self.min_outward_dist_contacts:
                     pair.passed_filters = False
 
+    def artefact_pair_is_intra_short(self, pair):
+
+        algn1 = pair.algn1
+        algn2 = pair.algn2
+        
+        if algn1["chrom"] == algn2["chrom"]:
+            if algn1["pos"] < algn2["pos"]:
+                min_algn = algn1
+                max_algn = algn2
+            else:
+                min_algn = algn2
+                max_algn = algn1
+    
+            if max_algn["strand"] == min_algn["strand"]:
+                if (max_algn["pos"] - min_algn["pos"]) < self.min_same_strand_dist_artefacts:
+                    pair.passed_filters = False
+            elif min_algn["strand"] == "+":
+                if (max_algn["pos"] - min_algn["pos"]) < self.min_inward_dist_artefacts:
+                    pair.passed_filters = False
+            elif min_algn["strand"] == "-":
+                if (max_algn["pos"] - min_algn["pos"]) < self.min_outward_dist_artefacts:
+                    pair.passed_filters = False
+
+    
     def chrom_regex_pair(self, pair):
 
         if not self.chrom_regex.match(pair.algn1["chrom"]):
@@ -390,9 +414,19 @@ class PairsGenerator:
         if pair.is_all():
             pair.passed_filters = False
 
+    def write_contact(self, pair):
+
+        if pair.passed_filters:
+            self.contacts.write(str(pair))
+
+    def write_artefact(self, pair):
+
+        if pair.passed_filters:
+            self.artefacts.write(str(pair))
+
     def build_artefact_funcs(self):
         funcs = []
-        funcs.append(self.pair_is_intra_short)
+        funcs.append(self.artefact_pair_is_intra_short)
         
         if self.blacklist:
             funcs.append(self.blacklist_pair)
@@ -402,11 +436,16 @@ class PairsGenerator:
             funcs.append(self.metadata_pair)
         if self.remove_all:
             funcs.append(self.all_pair)
+        if self.include_artefacts:
+            funcs.append(self.write_contact)
+
+        funcs.append(self.write_artefact)
+        
         self.artefact_funcs = funcs
 
     def build_contact_funcs(self):
         funcs = []
-        funcs.append(self.pair_is_intra_short)
+        funcs.append(self.contact_pair_is_intra_short)
         
         if self.blacklist:
             funcs.append(self.blacklist_pair)
@@ -418,6 +457,9 @@ class PairsGenerator:
             funcs.append(self.metadata_pair)
         if self.remove_all:
             funcs.append(self.all_pair)
+
+        funcs.append(self.write_contact)
+        
         self.contact_funcs = funcs
             
 
@@ -433,16 +475,16 @@ class PairsGenerator:
             for filter in self.artefact_funcs:
                 filter(pair)
 
-            if pair.passed_filters:
-                self.artefacts.write(str(pair))
+            #if pair.passed_filters:
+            #    self.artefacts.write(str(pair))
 
         elif pair.pair_class == "contact":
 
             for filter in self.contact_funcs:
                 filter(pair)
 
-            if pair.passed_filters:
-                self.contacts.write(str(pair))
+            #if pair.passed_filters:
+            #    self.contacts.write(str(pair))
         
     def __init__(self, 
                  contacts_path, 
@@ -459,11 +501,14 @@ class PairsGenerator:
                  flip_pairs=False,
                  genome="",
                  chrom_regex=None,
-                 min_inward_dist=1000,
-                 min_outward_dist=1000,
-                 min_same_strand_dist=0,
+                 min_inward_dist_contacts=1000,
+                 min_outward_dist_contacts=1000,
+                 min_same_strand_dist_contacts=0,
+                 min_inward_dist_artefacts=1000,
+                 min_outward_dist_artefacts=1000,
+                 min_same_strand_dist_artefacts=0,
+                 include_artefacts=False,
                  max_cut_site_whole_algn_dist = 500
-                 
                 ):
         
         self.artefacts_path = artefacts_path
@@ -483,9 +528,17 @@ class PairsGenerator:
         self.flip_pairs = flip_pairs
         self.genome = genome
         self.chrom_regex = re.compile(chrom_regex) if chrom_regex else None
-        self.min_inward_dist = min_inward_dist
-        self.min_outward_dist = min_outward_dist
-        self.min_same_strand_dist = min_same_strand_dist
+        
+        self.min_inward_dist_contacts = min_inward_dist_contacts
+        self.min_outward_dist_contacts = min_outward_dist_contacts
+        self.min_same_strand_dist_contacts = min_same_strand_dist_contacts
+
+        self.min_inward_dist_artefacts = min_inward_dist_artefacts
+        self.min_outward_dist_artefacts = min_outward_dist_artefacts
+        self.min_same_strand_dist_artefacts = min_same_strand_dist_artefacts
+
+        self.include_artefacts = include_artefacts
+        
         self.max_cut_site_whole_algn_dist = max_cut_site_whole_algn_dist
 
         self.phase_stats = {"alignments_with_conflicting_phase" : 0,
