@@ -22,6 +22,10 @@ elif trim_protocol == "hires":
 
     include: "trim/trim_hires.smk"
 
+elif trim_protocol == "GAGE-seq":
+
+    include: "trim/trim_GAGE-seq.smk"
+
 elif trim_protocol == "none":
 
     trim_output = "separate"

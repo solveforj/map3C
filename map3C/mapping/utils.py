@@ -194,6 +194,7 @@ class PairsStats:
                             f"{self.prefix}_R2_rescue" : 0,
                             f"{self.prefix}_R1-2" : 0,
                             f"{self.prefix}_R1&2" : 0,
+                            f"{self.prefix}_comb" : 0,
                             f"{self.prefix}_UU_all" : 0,
                             f"{self.prefix}_UU_mask" : 0,
                             f"{self.prefix}_UR_mask" : 0

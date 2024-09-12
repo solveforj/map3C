@@ -52,13 +52,13 @@ def cigar_dict(cigartuples, cigarstring):
 def parse_read(read, 
                span,
                idx,
+               mate,
                report_3_alignment_end=True,
                min_mapq=30):
 
     cigarstring = read.cigarstring
     cigartuples = read.cigartuples
 
-    mate = read.query_name.split("_")[-1]
     flag = read.flag
     
     is_unique = read.mapping_quality >= min_mapq
@@ -572,9 +572,9 @@ def parse_complex_walk(
     # Sort the pairs according to the pair index:
     output_pairs.sort(key=lambda x: int(x[-1][0]))
 
-    return iter(output_pairs)
+    return output_pairs
 
-def empty_alignment():
+def empty_alignment(idx, mate):
     return {
         "chrom": UNMAPPED_CHROM,
         "pos5": UNMAPPED_POS,
@@ -590,8 +590,8 @@ def empty_alignment():
         "cigar": "*",
         "type": "N",
         "span":"NA",
-        "mate": "NA",
-        "idx" : "NA",
+        "mate": mate,
+        "idx" : idx,
         "reference_start": "NA",
         "reference_end": "NA"
     }
@@ -607,13 +607,13 @@ def _convert_gaps_into_alignments(sorted_algns, max_inter_align_gap=20):
     for i in range(len(sorted_algns)):
         algn = sorted_algns[i]
         if algn["dist_to_5"] - last_5_pos > max_inter_align_gap:
-            new_algn = empty_alignment()
+            new_algn = empty_alignment("E","E")
             new_algn["dist_to_5"] = last_5_pos
             new_algn["algn_read_span"] = algn["dist_to_5"] - last_5_pos
             new_algn["read_len"] = algn["read_len"]
             new_algn["dist_to_3"] = new_algn["read_len"] - algn["dist_to_5"]
             new_algn["gap"] = True # CHANGE
-
+            
             last_5_pos = algn["dist_to_5"] + algn["algn_read_span"]
 
             sorted_algns.insert(i, new_algn)
@@ -699,30 +699,63 @@ def rescue_walk(algns1, algns2, max_molecule_size):
     else:
         return None
 
-def contact_iter(R1, R2, min_mapq=30, max_molecule_size=750, max_inter_align_gap=None):
+def expand_combinations(output_iter):
+
+    existing = {}
+    legs = {}
+
+    new_iter = []
+    
+    for pair in output_iter:
+        leg1 = pair[0]
+        leg2 = pair[1]
+        leg1_id = f"{leg1['mate']}_{leg1['idx']}"
+        leg2_id = f"{leg2['mate']}_{leg2['idx']}"
+        s_comb = tuple(sorted([leg1_id, leg2_id]))
+        existing[s_comb] = True
+
+        if leg1_id not in legs and leg1_id != "E_E":
+            legs[leg1_id] = leg1
+        if leg2_id not in legs and leg2_id != "E_E":
+            legs[leg2_id] = leg2
+
+    leg_keys = list(legs.keys())
+    for i in range(len(leg_keys)):
+        for j in range(i+1, len(leg_keys)):
+            li = leg_keys[i]
+            lj = leg_keys[j]
+            t_comb = tuple(sorted([li, lj]))
+            if t_comb not in existing:
+                new_iter.append((legs[li], legs[lj], ('x', "comb")))
+            
+    output_iter += new_iter
+    
+    return output_iter
+
+def contact_iter(R1, R2, min_mapq=30, max_molecule_size=750, max_inter_align_gap=None, comb=False):
 
     R1_parsed = []
     for i in R1:
         read_data = R1[i]
         read = read_data["trimmed_read"]
         span = read_data["adjusted_span"]
-        R1_parsed.append(parse_read(read, span, i, min_mapq))
+        R1_parsed.append(parse_read(read, span, i, "R1", min_mapq))
     
     R2_parsed = []
     for i in R2:
         read_data = R2[i]
         read = read_data["trimmed_read"]
         span = read_data["adjusted_span"]
-        R2_parsed.append(parse_read(read, span, i, min_mapq))
+        R2_parsed.append(parse_read(read, span, i, "R2", min_mapq))
 
     if len(R1_parsed) > 0:
         R1_parsed = sorted(R1_parsed, key=lambda algn: algn["dist_to_5"])
     else:
-        R1_parsed = [empty_alignment()]  # Empty alignment dummy
+        R1_parsed = [empty_alignment("E","E")]  # Empty alignment dummy
     if len(R2_parsed) > 0:
         R2_parsed = sorted(R2_parsed, key=lambda algn: algn["dist_to_5"])
     else:
-        R2_parsed = [empty_alignment()]  # Empty alignment dummy
+        R2_parsed = [empty_alignment("E","E")]  # Empty alignment dummy
         
     if max_inter_align_gap is not None:
         _convert_gaps_into_alignments(R1_parsed, max_inter_align_gap)
@@ -736,7 +769,7 @@ def contact_iter(R1, R2, min_mapq=30, max_molecule_size=750, max_inter_align_gap
     is_chimeric_1 = len(R1_parsed) > 1
     is_chimeric_2 = len(R2_parsed) > 1
 
-    output_iter = iter([(hic_algn1, hic_algn2, pair_index)])
+    output_iter = [(hic_algn1, hic_algn2, pair_index)]
     
     rule = "mask"
     if is_chimeric_1 or is_chimeric_2:
@@ -745,12 +778,10 @@ def contact_iter(R1, R2, min_mapq=30, max_molecule_size=750, max_inter_align_gap
         # Walk was rescued as a simple walk:
         if rescued_linear_side == 1 and "gap" not in hic_algn1:
             pair_index = (1, "R1_rescue")
-            output_iter = iter([(hic_algn1, R1_parsed[1], pair_index)])
-            #output_iter = iter([(hic_algn1, hic_algn2, pair_index)])
+            output_iter = [(hic_algn1, R1_parsed[1], pair_index)]
         elif rescued_linear_side == 2 and "gap" not in hic_algn2:
             pair_index = (1, "R2_rescue")
-            output_iter = iter([(hic_algn2, R2_parsed[1], pair_index)])
-            #output_iter = iter([(hic_algn1, hic_algn2, pair_index)])
+            output_iter = [(hic_algn2, R2_parsed[1], pair_index)]
         # Walk is unrescuable:
         else:
             rule = "all"
@@ -758,4 +789,8 @@ def contact_iter(R1, R2, min_mapq=30, max_molecule_size=750, max_inter_align_gap
                     R1_parsed,
                     R2_parsed,
                     max_molecule_size)
+
+            if comb:
+                output_iter = expand_combinations(output_iter)
+            
     return output_iter, rule 

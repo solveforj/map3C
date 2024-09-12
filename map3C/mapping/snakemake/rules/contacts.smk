@@ -3,12 +3,15 @@
 if config["contacts"]["call"]["call_protocol"] != "default":
     raise Exception("Contact calling protocol must be specified for desired output.")
 
-
 rule generate_contacts:
     input:
         get_merged_bam
     output:
-        bam="{id}_trimmed.bam",
+        bam = (
+            "{id}_trimmed.bam"
+            if config["contacts"]["call"]["keep_trimmed_bam"]
+            else temp("{id}_trimmed.bam")        
+        ),
         contacts=(
             "{id}_contacts.pairs.gz"
             if last_contacts_step == "call"
@@ -89,6 +92,10 @@ if config["contacts"]["lowcov"]["lowcov_protocol"] == "default":
     if config["contacts"]["sort"]["sort_protocol"] == "none":
 
         raise Exception("In order to filterbycov contacts/artefacts, they must be sorted.")
+
+    if config["contacts"]["dedup"]["dedup_protocol"] == "none":
+
+        raise Exception("In order to filterbycov contacts/artefacts, this pipeline requires that they are deduplicated.")
 
     if "--no-flip" in config["contacts"]["call"]["call_params"]:
 

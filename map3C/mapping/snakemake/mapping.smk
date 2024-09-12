@@ -34,7 +34,9 @@ if mode == "bsdna":
             # QC stats
             expand("{id}_qc_stats.txt", id=run_info.index),
             # Alignments
-            expand("{id}_trimmed.bam", id=run_info.index),
+            (expand("{id}_trimmed.bam", id=run_info.index)
+             if config["contacts"]["call"]["keep_trimmed_bam"]
+             else []),
             # Methylation
             (expand("{id}.allc.tsv.gz.tbi", id=run_info.index)
              if config["read_analysis"]["allc"]["allc_protocol"] != "none"
@@ -62,7 +64,9 @@ if mode == "dna":
             # QC stats
             expand("{id}_qc_stats.txt", id=run_info.index),
             # Alignments
-            expand("{id}_trimmed.bam", id=run_info.index),
+            (expand("{id}_trimmed.bam", id=run_info.index)
+             if config["contacts"]["call"]["keep_trimmed_bam"]
+             else []),
             # Contacts
             expand(contacts, id=run_info.index),
             # Artefacts

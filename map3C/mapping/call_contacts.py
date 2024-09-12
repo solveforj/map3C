@@ -325,7 +325,9 @@ class ContactGenerator:
 
         contacts, rule = contact_iter(R1, R2, min_mapq=self.min_mapq, 
                                       max_molecule_size=self.max_molecule_size, 
-                                      max_inter_align_gap=self.max_inter_align_gap)
+                                      max_inter_align_gap=self.max_inter_align_gap,
+                                      comb=self.comb
+                                     )
 
         for (hic_algn1, hic_algn2, pair_index) in contacts:
 
@@ -479,7 +481,8 @@ class ContactGenerator:
                  read_type="bisulfite",
                  manual_mate_annotation=False,
                  max_cut_site_split_algn_dist = 10,
-                 max_cut_site_whole_algn_dist = 500
+                 max_cut_site_whole_algn_dist = 500,
+                 pair_combinations=False
                 ):
 
         self.min_mapq = min_mapq
@@ -540,7 +543,9 @@ class ContactGenerator:
             self.blacklist=process_bed(blacklist) 
         else:
             self.blacklist=None
-            
+
+        self.comb = pair_combinations
+        
         self.min_blacklist_overlap_length = min_blacklist_overlap_length
         self.min_blacklist_overlap_ratio = min_blacklist_overlap_ratio
 

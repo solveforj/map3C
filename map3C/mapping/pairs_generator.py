@@ -164,8 +164,12 @@ class PairsGenerator:
                 handle.write(f'#chromsize: {chrom} {str(self.chrom_sizes[chrom])}\n')
         base_columns = "#columns: readID chrom1 pos1 chrom2 pos2 strand1 strand2 pair_type"
 
-        if self.read_phaser and not artefacts:
-            base_columns += " phase0 phase1"
+        if artefacts:
+            if self.read_phaser and self.include_artefacts:
+                base_columns += " phase0 phase1"
+        else:
+            if self.read_phaser:
+                base_columns += " phase0 phase1"
 
             
         if self.full_pairs:
@@ -271,6 +275,16 @@ class PairsGenerator:
                     overlap = R2_overlap_keys[cs_key]
                     cs_locs = R2_cs_keys[cs_key]
             elif contact_reads == "R1&2" or contact_reads == "R1-2":
+                bp_class, bp_enzyme, r5_rs, r3_rs = gap_pair_to_restriction_site(algn1["read"], 
+                                                                                 algn2["read"], 
+                                                                                 self.restriction_sites, 
+                                                                                 self.max_cut_site_whole_algn_dist)
+                if bp_enzyme != "artefact":
+                    ct = "gap"
+                else:
+                    ct = "artefact_gap"
+                    
+            elif contact_reads =="comb":
                 bp_class, bp_enzyme, r5_rs, r3_rs = gap_pair_to_restriction_site(algn1["read"], 
                                                                                  algn2["read"], 
                                                                                  self.restriction_sites, 
@@ -432,6 +446,8 @@ class PairsGenerator:
             funcs.append(self.blacklist_pair)
         if self.chrom_regex:
             funcs.append(self.chrom_regex_pair)
+        if self.read_phaser and self.include_artefacts:
+            funcs.append(self.phase_pair)
         if self.full_pairs:
             funcs.append(self.metadata_pair)
         if self.remove_all:

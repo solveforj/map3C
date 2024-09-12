@@ -244,6 +244,12 @@ def call_contacts_register_subparser(subparser):
                             help="""If set, then all reported alignments will be phased.
                                     """)
 
+    parser_opt.add_argument('--pair-combinations', action="store_true",
+                            help="""If set, then for walk pairs (called using pairtools all algorithm), all combinations of alignments within a given
+                                    read pair will be called as pairs. These will be identified as artefacts using the --max-cut-site-whole-algn-dist 
+                                    parameter.
+                                    """)
+
 
 def mask_overlaps_register_subparser(subparser):
     parser = subparser.add_parser('mask-overlaps',

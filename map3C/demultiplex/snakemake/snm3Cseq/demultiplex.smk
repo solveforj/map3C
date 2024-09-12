@@ -5,7 +5,7 @@ from glob import glob
 run_info = pd.read_csv("run_config.csv")
 # Get barcode names
 cell_ids = []
-barcodes = config["general"]["snm3Cseq_plate_input"]["barcodes"]
+barcodes = config["demultiplex_protocols"]["snm3Cseq"]["barcodes"]
 with open(barcodes) as f:
     for line in f:
         line = line.strip()
@@ -41,6 +41,8 @@ rule concatenate_R1:
         temp("{plate}_R1.fastq.gz")
     conda:
         "map3C_utils"
+    wildcard_constraints:
+        plate="[A-Za-z0-9-]+(?=_|\\.)"
     shell:
         'cat {input} > {output}'
 
@@ -51,6 +53,8 @@ rule concatenate_R2:
         temp("{plate}_R2.fastq.gz")
     conda:
         "map3C_utils"
+    wildcard_constraints:
+        plate="[A-Za-z0-9-]+(?=_|\\.)"
     shell:
         'cat {input} > {output}'
 
@@ -69,11 +73,14 @@ rule demultiplex:
     params:
         cutadapt_out_R1=lambda wildcards: f"{wildcards.plate}_{{name}}/{wildcards.plate}_{{name}}_indexed_R1.fastq.gz",
         cutadapt_out_R2=lambda wildcards: f"{wildcards.plate}_{{name}}/{wildcards.plate}_{{name}}_indexed_R2.fastq.gz",
+        extra=config["demultiplex_protocols"]["snm3Cseq"]["cutadapt_params"]
     conda:
         "map3C_preprocess_snm3Cseq"
+    wildcard_constraints:
+        plate="[A-Za-z0-9-]+(?=_|\\.)"
     shell:
         """
-        cutadapt -j {threads} -Z -e 1 --no-indels --action=none -g ^file:{barcodes} \
+        cutadapt -j {threads} -Z {params.extra} --no-indels --action=none -g ^file:{barcodes} \
             -o {params.cutadapt_out_R1} \
             -p {params.cutadapt_out_R2} \
             --untrimmed-output {output.R1_untrimmed} \
