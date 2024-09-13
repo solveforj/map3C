@@ -9,9 +9,9 @@ rule trim_fastq:
     threads:
         2
     conda:
-        "map3C_preprocess_GAGE-seq"
+        "map3C_preprocess_cutadapt"
     params:
-        extra=config["trim_methods"]["GAGE-seq"]["cutadapt_params"]
+        extra=config["trim_methods"][trim_protocol]["cutadapt_params"]
     shell:
         """
         cutadapt --report=minimal -j {threads} {params.extra} -o {output.r1} -p {output.r2} {input.r1} {input.r2} > {output.stats}

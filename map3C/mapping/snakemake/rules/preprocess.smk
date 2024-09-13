@@ -12,7 +12,7 @@ if trim_protocol.endswith("smk"):
 
 elif trim_protocol == "snm3Cseq":
 
-    include: "trim/trim_snm3Cseq.smk"
+    include: "trim/trim_cutadapt_pe.smk"
 
 elif trim_protocol == "meta":
 
@@ -24,7 +24,11 @@ elif trim_protocol == "hires":
 
 elif trim_protocol == "GAGE-seq":
 
-    include: "trim/trim_GAGE-seq.smk"
+    include: "trim/trim_cutadapt_pe.smk"
+
+elif trim_protocol == "Dip-C_Nextera":
+
+    include: "trim/trim_cutadapt_pe.smk"
 
 elif trim_protocol == "none":
 
