@@ -75,7 +75,7 @@ rule demultiplex:
         cutadapt_out_R2=lambda wildcards: f"{wildcards.plate}-BC2-{{name}}/{wildcards.plate}-BC2-{{name}}_R2.fastq.gz",
         extra=config["demultiplex_protocols"]["GAGE-seq"]["BC2"]["cutadapt_params"]
     conda:
-        "map3C_preprocess_GAGE-seq"
+        "map3C_preprocess_cutadapt"
     wildcard_constraints:
         plate="[A-Za-z0-9-]+(?=-BC2)"
     shell:
