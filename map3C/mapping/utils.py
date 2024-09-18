@@ -115,7 +115,7 @@ def process_restriction_sites(restriction_sites, restriction_enzymes):
 
 class PairsStats:
 
-    def parse_base(self, line):
+    def parse_base(self, line, contact_type):
         chrom1 = line[1]
         chrom2 = line[3]
         pos1 = line[2]
@@ -124,26 +124,26 @@ class PairsStats:
         if chrom1 == chrom2:
             dist = np.abs(int(pos2) - int(pos1))
             if dist >= 1000:
-                self.pairs_stats[f"{self.prefix}_intra1kb"] += 1
+                self.pairs_stats[f"{contact_type}_intra1kb"] += 1
             if dist >= 10000:
-                self.pairs_stats[f"{self.prefix}_intra10kb"] += 1
+                self.pairs_stats[f"{contact_type}_intra10kb"] += 1
             if dist >= 20000:
-                self.pairs_stats[f"{self.prefix}_intra20kb"] += 1
+                self.pairs_stats[f"{contact_type}_intra20kb"] += 1
         else:
-            self.pairs_stats[f"{self.prefix}_inter"] += 1
+            self.pairs_stats[f"{contact_type}_inter"] += 1
 
-        self.pairs_stats[f"{self.prefix}_total"] += 1
+        self.pairs_stats[f"{contact_type}_total"] += 1
 
 
-    def parse_phase(self, line):
+    def parse_phase(self, line, contact_type):
         phase1 = line[self.phase1_idx]
         phase2 = line[self.phase2_idx]
 
         phase_id = "".join(sorted([phase1, phase2]))
 
-        self.pairs_stats[f"{self.prefix}_phased_{phase_id}"] += 1
+        self.pairs_stats[f"{contact_type}_phased_{phase_id}"] += 1
 
-    def parse_metadata(self, line):
+    def parse_metadata(self, line, contact_type):
         pair_type = line[self.pair_type_idx]
         if pair_type == "RU":
             pair_type = "UR"
@@ -152,8 +152,8 @@ class PairsStats:
 
         pair_type_rule = f"{pair_type}_{rule}"
 
-        self.pairs_stats[f"{self.prefix}_{reads}"] += 1
-        self.pairs_stats[f"{self.prefix}_{pair_type_rule}"] += 1
+        self.pairs_stats[f"{contact_type}_{reads}"] += 1
+        self.pairs_stats[f"{contact_type}_{pair_type_rule}"] += 1
         
     def parse_file(self):
         self.parsers = [self.parse_base]
@@ -165,50 +165,70 @@ class PairsStats:
                     columns = line[10:].split()
 
                     self.pair_type_idx = columns.index("pair_type")
-                    
-                    if "phase0" in columns and "phase1" in columns:
-                        self.phase1_idx = columns.index("phase0")
-                        self.phase2_idx = columns.index("phase1")
-                        self.pairs_stats.update({
-                            f"{self.prefix}_phased_.0" : 0,
-                            f"{self.prefix}_phased_.1" : 0,
-                            f"{self.prefix}_phased_.." : 0,
-                            f"{self.prefix}_phased_11" : 0,
-                            f"{self.prefix}_phased_00" : 0,
-                            f"{self.prefix}_phased_01" : 0,
-                        })
-                        
-                        self.parsers.append(self.parse_phase)
-                        
+
                     if "rule" in columns:
                         self.rule_idx = columns.index("rule")
                         self.reads_idx = columns.index("reads")
-                        #contact_class_idx = columns.index("contact_class")
+                        self.contact_class_idx = columns.index("contact_class")
                         #multimap_overlap_idx = columns.index("multimap_overlap")
                         #cs_locs_idx = columns.index("cut_site_locs")
+
+                        self.types = ["contacts", "artefacts"]
                         
-                        self.pairs_stats.update({
-                            f"{self.prefix}_R1" : 0,
-                            f"{self.prefix}_R2" : 0,
-                            f"{self.prefix}_R1_rescue" : 0,
-                            f"{self.prefix}_R2_rescue" : 0,
-                            f"{self.prefix}_R1-2" : 0,
-                            f"{self.prefix}_R1&2" : 0,
-                            f"{self.prefix}_comb" : 0,
-                            f"{self.prefix}_UU_all" : 0,
-                            f"{self.prefix}_UU_mask" : 0,
-                            f"{self.prefix}_UR_mask" : 0
-                        })
+                        for i in self.types:
+                            self.pairs_stats.update({
+                                f"{i}_R1" : 0,
+                                f"{i}_R2" : 0,
+                                f"{i}_R1_rescue" : 0,
+                                f"{i}_R2_rescue" : 0,
+                                f"{i}_R1-2" : 0,
+                                f"{i}_R1&2" : 0,
+                                f"{i}_comb" : 0,
+                                f"{i}_UU_all" : 0,
+                                f"{i}_UU_mask" : 0,
+                                f"{i}_UR_mask" : 0
+                            })
                         
                         self.parsers.append(self.parse_metadata)
+                    else:
+                        self.types = ["pairs"]
+                        
+                    if "phase0" in columns and "phase1" in columns:
+                        self.phase1_idx = columns.index("phase0")
+                        self.phase2_idx = columns.index("phase1")
+                        for i in self.types:
+                            self.pairs_stats.update({
+                                f"{i}_phased_.0" : 0,
+                                f"{i}_phased_.1" : 0,
+                                f"{i}_phased_.." : 0,
+                                f"{i}_phased_11" : 0,
+                                f"{i}_phased_00" : 0,
+                                f"{i}_phased_01" : 0,
+                            })
+                        
+                        self.parsers.append(self.parse_phase)
+
+                    for i in self.types:
+                        self.pairs_stats.update({
+                            f"{i}_total" : 0,
+                            f"{i}_intra1kb" : 0,
+                            f"{i}_intra10kb" : 0,
+                            f"{i}_intra20kb" : 0,
+                            f"{i}_inter" : 0})
+                                    
                         
                 elif line.startswith("#"):
                     continue
 
                 else:
                     line = line.split()
+                    if len(self.types) == 1:
+                        contact_type = self.types[0]
+                    else:
+                        contact_type = "artefacts" if "artefact" in line[self.contact_class_idx] else "contacts"
+
                     for parser in self.parsers:
-                        parser(line)
+                        parser(line, contact_type)
                     
     def parse_dedup_file(self):
         pairs_dup_rate = np.nan
@@ -221,20 +241,13 @@ class PairsStats:
                         pairs_dup_rate = np.nan
                     break
 
-        self.pairs_stats.update({f"{self.prefix}_dup_rate":pairs_dup_rate})
+        self.pairs_stats.update({f"pairs_dup_rate":pairs_dup_rate})
                         
-    def __init__(self, pair_file, prefix, pairtools_dedup_file=None):
+    def __init__(self, pair_file, pairtools_dedup_file=None):
         
         self.pair_file = pair_file
-        self.prefix = prefix
         
-        self.pairs_stats = {
-            f"{self.prefix}_total" : 0,
-            f"{self.prefix}_intra1kb" : 0,
-            f"{self.prefix}_intra10kb" : 0,
-            f"{self.prefix}_intra20kb" : 0,
-            f"{self.prefix}_inter" : 0
-        }
+        self.pairs_stats = {}
         
         self.parse_file()
 
@@ -245,17 +258,13 @@ class PairsStats:
 
 def pairtools_stats(out_prefix,
                     contacts,
-                    artefacts,
                     contacts_dedup_stats=None,
-                    artefacts_dedup_stats=None,
                     filterbycov_stats=None
                    ):
 
     stats_path = f"{out_prefix}_pairs_stats.txt"
     
-    contacts_stats = PairsStats(contacts, "contacts", contacts_dedup_stats).pairs_stats
-
-    artefacts_stats = PairsStats(artefacts, "artefacts", artefacts_dedup_stats).pairs_stats
+    contacts_stats = PairsStats(contacts, contacts_dedup_stats).pairs_stats
 
     if filterbycov_stats:
         if os.path.isfile(filterbycov_stats):
@@ -273,7 +282,6 @@ def pairtools_stats(out_prefix,
     full_stats = {}
 
     full_stats.update(contacts_stats)
-    full_stats.update(artefacts_stats)
     
     stats_df = pd.DataFrame.from_dict(full_stats, orient="index").T
     stats_df.to_csv(stats_path, index=False, sep="\t")
@@ -310,9 +318,7 @@ def compute_mapped_nucleotides(bam, min_mapq, min_base_quality, keep_dup=False):
 
 def aggregate_qc_stats(job,
                        out_prefix, 
-                       mode,
-                       min_mapq = 30, 
-                       min_base_quality = 20):
+                       mode):
 
     if mode == "bsdna":
         
@@ -321,7 +327,7 @@ def aggregate_qc_stats(job,
                      f"{out_prefix}_dupsifter_stats.txt", 
                      f"{out_prefix}_alignment_stats.txt",
                      f"{out_prefix}_pairs_stats.txt",
-                     f"{out_prefix}.allc.tsv.gz_methylation_stats.txt"
+                     f"{out_prefix}_methylation_stats.txt"
                     ]
 
     elif mode == "dna":
@@ -336,34 +342,6 @@ def aggregate_qc_stats(job,
         if os.path.exists(path):
             stat_dfs.append(pd.read_table(path).astype(float))                 
     
-    cov_map_stats = []
-    cov_map_columns = []
-    trimmed_bam = f"{out_prefix}_trimmed_sorted.bam"
-    if os.path.exists(trimmed_bam):
-        genome_cov_dedup_trim = compute_genome_coverage(trimmed_bam, min_mapq, min_base_quality, keep_dup=False)
-        mapped_nuc_dedup_trim = compute_mapped_nucleotides(trimmed_bam, min_mapq, min_base_quality, keep_dup=False)
-        cov_map_stats += [genome_cov_dedup_trim, mapped_nuc_dedup_trim]
-        cov_map_columns += ["reference_coverage_dedup_trim", "mapped_nucleotides_dedup_trim"]
-
-    mkdup_bam = f"{out_prefix}_mkdup_sorted.bam"
-    if os.path.exists(mkdup_bam):
-        genome_cov_dup = compute_genome_coverage(mkdup_bam, min_mapq, min_base_quality, keep_dup=True)
-        genome_cov_dedup = compute_genome_coverage(mkdup_bam, min_mapq, min_base_quality, keep_dup=False)
-        mapped_nuc_dup = compute_mapped_nucleotides(mkdup_bam, min_mapq, min_base_quality, keep_dup=True)
-        mapped_nuc_dedup = compute_mapped_nucleotides(mkdup_bam, min_mapq, min_base_quality, keep_dup=False)
-        cov_map_stats += [genome_cov_dup, genome_cov_dedup, mapped_nuc_dup, mapped_nuc_dedup]
-        cov_map_columns += ["reference_coverage_dup", "reference_coverage_dedup", "mapped_nucleotides_dup", "mapped_nucleotides_dedup"]
-
-    masked_bam = f"{out_prefix}_masked_sorted.bam"
-    if os.path.exists(masked_bam):
-        genome_cov_dedup_mask = compute_genome_coverage(masked_bam, min_mapq, min_base_quality, keep_dup=False)
-        mapped_nuc_dedup_mask = compute_mapped_nucleotides(masked_bam, min_mapq, min_base_quality, keep_dup=False)
-        cov_map_stats += [genome_cov_dedup_mask, mapped_nuc_dedup_mask]
-        cov_map_columns += ["reference_coverage_dedup_mask", "mapped_nucleotides_dedup_mask"]
-
-    cov_map_df = pd.DataFrame([cov_map_stats], columns=cov_map_columns)
-    stat_dfs.append(cov_map_df)
-
     all_stats = pd.concat(stat_dfs, axis=1)
     all_stats = all_stats.T
 

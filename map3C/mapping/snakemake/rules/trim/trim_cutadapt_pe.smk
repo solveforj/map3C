@@ -30,7 +30,7 @@ rule trim_stats:
             tstats = lines[1].strip().split("\t")
             in_pairs = tstats[1]
             out_pairs = tstats[6]
-            out.write("\t".join(["demultiplexed_pairs", "trimmed_pairs"]) + "\n")
+            out.write("\t".join(["pre_trimmed_pairs", "trimmed_pairs"]) + "\n")
             out.write("\t".join([in_pairs, out_pairs]) + "\n")
 
 trim_output = "separate"

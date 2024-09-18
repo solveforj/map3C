@@ -8,24 +8,32 @@ sort_done = config["contacts"]["sort"]["sort_protocol"] != "none"
 dedup_done = config["contacts"]["dedup"]["dedup_protocol"] != "none"
 lowcov_done = config["contacts"]["lowcov"]["lowcov_protocol"] != "none"
 call_done = config["contacts"]["call"]["call_protocol"] != "none"
+filter_done = config["contacts"]["filter"]["filter_protocol"] != "none"
+allc_done = config["read_analysis"]["allc"]["allc_protocol"]
+
+bam_generated = "--no-output-bam" not in config["contacts"]["call"]["call_params"]
+keep_highcov = config["contacts"]["lowcov"]["keep_highcov"]
+generate_sr = "--split-reads" in config["contacts"]["filter"]["filter_params"]
 
 if call_done:
     last_contacts_step = "call"
-    contacts = "{id}_contacts.pairs.gz"
-    artefacts = "{id}_artefacts.pairs.gz"
+    filter_suffix = "all"    
 if sort_done:
     last_contacts_step = "sort"
-    contacts = "{id}_contacts.sorted.pairs.gz"
-    artefacts = "{id}_artefacts.sorted.pairs.gz"
+    filter_suffix = "all.srt"
 if dedup_done:
     last_contacts_step = "dedup"
-    contacts = "{id}_contacts.dedup.pairs.gz"
-    artefacts = "{id}_artefacts.dedup.pairs.gz"
+    filter_suffix = "all.srt.dedup"
 if lowcov_done:
     last_contacts_step = "lowcov"
-    contacts = "{id}_contacts.dedup.lowcov.pairs.gz"
-    artefacts = "{id}_artefacts.dedup.pairs.gz"
-    highcov = "{id}_artefacts.dedup.highcov.pairs.gz"
+    filter_suffix = "all.srt.dedup.lcov"
+    highcov = "{id}_artefacts.srt.dedup.hcov.pairs.gz"
+
+pairs = f"{{id}}_{filter_suffix}.pairs.gz"
+    
+if filter_done:
+    split_reads = pairs.replace(".pairs.gz", ".split_reads.pairs.gz")
+    pairs = pairs.replace(".pairs.gz", ".flt.pairs.gz")
 
 if mode == "bsdna":
     
@@ -35,28 +43,29 @@ if mode == "bsdna":
             expand("{id}_qc_stats.txt", id=run_info.index),
             # Alignments
             (expand("{id}_trimmed.bam", id=run_info.index)
-             if config["contacts"]["call"]["keep_trimmed_bam"]
+             if bam_generated
              else []),
             # Methylation
             (expand("{id}.allc.tsv.gz.tbi", id=run_info.index)
-             if config["read_analysis"]["allc"]["allc_protocol"] != "none"
+             if allc_done
              else []),
             (expand("{id}.allc.tsv.gz.count.csv", id=run_info.index)
-             if config["read_analysis"]["allc"]["allc_protocol"] != "none"
+             if allc_done
              else []),
             (expand("{id}.allc.tsv.gz", id=run_info.index)
-             if config["read_analysis"]["allc"]["allc_protocol"] != "none"
+             if allc_done
              else []),
             # Contacts
-            expand(contacts, id=run_info.index),
-            # Artefacts
-            expand(artefacts, id=run_info.index),
+            expand(pairs, id=run_info.index),
+            # Split reads
+            (expand(split_reads, id=run_info.index)
+             if generate_sr and filter_done
+             else []),
             # Highcov artefacts
             (expand(highcov, id=run_info.index)
-             if config["contacts"]["lowcov"]["keep_highcov"] and lowcov_done
+             if keep_highcov and lowcov_done
              else [])
             
-
 if mode == "dna":
     
     rule all:
@@ -65,17 +74,18 @@ if mode == "dna":
             expand("{id}_qc_stats.txt", id=run_info.index),
             # Alignments
             (expand("{id}_trimmed.bam", id=run_info.index)
-             if config["contacts"]["call"]["keep_trimmed_bam"]
+             if bam_generated
              else []),
             # Contacts
-            expand(contacts, id=run_info.index),
-            # Artefacts
-            expand(artefacts, id=run_info.index),
+            expand(pairs, id=run_info.index),
+            # Split reads
+            (expand(split_reads, id=run_info.index)
+             if generate_sr and filter_done
+             else []),
             # Highcov artefacts
             (expand(highcov, id=run_info.index)
-             if config["contacts"]["lowcov"]["keep_highcov"] and lowcov_done
+             if keep_highcov and lowcov_done
              else [])
-
 
 include: "rules/preprocess.smk"
 include: "rules/reformat.smk"

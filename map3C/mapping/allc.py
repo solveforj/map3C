@@ -54,6 +54,8 @@ import sys
 import time
 from subprocess import PIPE, Popen, run
 
+from .utils import compute_genome_coverage, compute_mapped_nucleotides
+
 try:
     run(["pigz", "--version"], capture_output=True)
     PIGZ = True
@@ -477,13 +479,11 @@ def _convert_bam_strandness(in_bam_path, out_bam_path):
             out_bam.write(read)
     return
 
-def chrL_stats(output_path):
+def get_stats(output_path, mCH_command, mCG_command):
     command1 = f"zcat {output_path}"
-    command2 = "awk -v OFS='\t' -v mCH=0 -v CH=0 '{ if (($4 ~ /^[ATCG]C[ATC]/) && ($4 != \"CCAGG\") && ($4 != \"CCTGG\")) {mCH += $5; CH += $6 }} END {print mCH, CH } '"
-    command3 = "awk -v OFS='\t' -v mCG=0 -v CG=0 '{ if (($4 ~ /^[ATCG]C[G]/) && ($4 != \"CCAGG\") && ($4 != \"CCTGG\")) {mCG += $5; CG += $6 }} END {print mCG, CG } '"
-
+    
     p1 = subprocess.Popen(shlex.split(command1), stdout=subprocess.PIPE)
-    p2 = subprocess.run(shlex.split(command2), stdin=p1.stdout, capture_output=True, text=True)
+    p2 = subprocess.run(shlex.split(mCH_command), stdin=p1.stdout, capture_output=True, text=True)
     
     out = p2.stdout.strip().split("\t")
     mch = int(out[0])
@@ -495,7 +495,7 @@ def chrL_stats(output_path):
         mch_fraction = np.nan
     
     p1 = subprocess.Popen(shlex.split(command1), stdout=subprocess.PIPE)
-    p2 = subprocess.run(shlex.split(command3), stdin=p1.stdout, capture_output=True, text=True)
+    p2 = subprocess.run(shlex.split(mCG_command), stdin=p1.stdout, capture_output=True, text=True)
     
     out = p2.stdout.strip().split("\t")
     mcg = int(out[0])
@@ -506,48 +506,33 @@ def chrL_stats(output_path):
     else:
         mcg_fraction = np.nan
 
-    # with open(output_path + "_stats.txt","w") as f:
-    #     f.write("\t".join(["mCG/CG_chrL", "mCH/CH_chrL"]) + "\n")
-    #     f.write("\t".join([str(mcg_fraction), str(mch_fraction)]) + "\n")
-
     return mcg_fraction, mch_fraction
 
+def global_stats(output_path, control_chrom):
 
-def global_stats(output_path):
-    command1 = f"zcat {output_path}"
-    command2 = "awk -v OFS='\t' -v mCH=0 -v CH=0 '{ if (($1 != \"chrL\") && ($4 ~ /^C[ATC]/)) {mCH += $5; CH += $6 }} END {print mCH, CH } '"
-    command3 = "awk -v OFS='\t' -v mCG=0 -v CG=0 '{ if (($1 != \"chrL\") && ($4 ~ /^C[G]/)) {mCG += $5; CG += $6 }} END {print mCG, CG } '"
-
-    p1 = subprocess.Popen(shlex.split(command1), stdout=subprocess.PIPE)
-    p2 = subprocess.run(shlex.split(command2), stdin=p1.stdout, capture_output=True, text=True)
-    
-    out = p2.stdout.strip().split("\t")
-    mch = int(out[0])
-    ch = int(out[1])
-    
-    if ch > 0:
-        mch_fraction = mch / ch
+    if control_chrom:
+        mCH_command = f"awk -v OFS='\t' -v mCH=0 -v CH=0 '{{ if (($1 != \"{control_chrom}\") && ($4 ~ /^C[ATC]/)) {{mCH += $5; CH += $6 }}}} END {{print mCH, CH }} '"
+        mCG_command = f"awk -v OFS='\t' -v mCG=0 -v CG=0 '{{ if (($1 != \"{control_chrom}\") && ($4 ~ /^C[G]/)) {{mCG += $5; CG += $6 }}}} END {{print mCG, CG }} '"
     else:
-        mch_fraction = np.nan
-    
-    p1 = subprocess.Popen(shlex.split(command1), stdout=subprocess.PIPE)
-    p2 = subprocess.run(shlex.split(command3), stdin=p1.stdout, capture_output=True, text=True)
-    
-    out = p2.stdout.strip().split("\t")
-    mcg = int(out[0])
-    cg = int(out[1])
-    
-    if cg > 0:
-        mcg_fraction = mcg / cg
-    else:
-        mcg_fraction = np.nan
+        mCH_command = f"awk -v OFS='\t' -v mCH=0 -v CH=0 '{{ if (($4 ~ /^C[ATC]/)) {{mCH += $5; CH += $6 }}}} END {{print mCH, CH }} '"
+        mCG_command = f"awk -v OFS='\t' -v mCG=0 -v CG=0 '{{ if (($4 ~ /^C[G]/)) {{mCG += $5; CG += $6 }}}} END {{print mCG, CG }} '" 
 
-    # with open(output_path + "_stats.txt","w") as f:
-    #     f.write("\t".join(["mCG/CG_global", "mCH/CH_global"]) + "\n")
-    #     f.write("\t".join([str(mcg_fraction), str(mch_fraction)]) + "\n")
+    mcg_fraction, mch_fraction = get_stats(output_path, mCH_command, mCG_command)
 
     return mcg_fraction, mch_fraction
+    
+def control_stats(output_path, control_chrom):
 
+    if control_chrom == "chrL":
+        mCH_command = "awk -v OFS='\t' -v mCH=0 -v CH=0 '{ if (($4 ~ /^[ATCG]C[ATC]/) && ($4 != \"CCAGG\") && ($4 != \"CCTGG\")) {mCH += $5; CH += $6 }} END {print mCH, CH } '"
+        mCG_command = "awk -v OFS='\t' -v mCG=0 -v CG=0 '{ if (($4 ~ /^[ATCG]C[G]/) && ($4 != \"CCAGG\") && ($4 != \"CCTGG\")) {mCG += $5; CG += $6 }} END {print mCG, CG } '"
+    else:
+        mCH_command = f"awk -v OFS='\t' -v mCH=0 -v CH=0 '{{ if (($4 ~ /^C[ATC]/)) {{mCH += $5; CH += $6 }}}} END {{print mCH, CH }} '"
+        mCG_command = f"awk -v OFS='\t' -v mCG=0 -v CG=0 '{{ if (($4 ~ /^C[G]/)) {{mCG += $5; CG += $6 }}}} END {{print mCG, CG }} '" 
+
+    mcg_fraction, mch_fraction = get_stats(output_path, mCH_command, mCG_command)
+
+    return mcg_fraction, mch_fraction
 
 def _read_faidx(faidx_path):
     """
@@ -803,7 +788,8 @@ def _aggregate_count_df(count_dfs):
 def bam_to_allc(
     bam_path,
     reference_fasta,
-    output_path=None,
+    out_prefix,
+    control_chrom=None,
     num_upstr_bases=0,
     num_downstr_bases=2,
     min_mapq=10,
@@ -821,8 +807,8 @@ def bam_to_allc(
         Path to 1 position sorted BAM file
     reference_fasta
         {reference_fasta_doc}
-    output_path
-        Path to 1 output ALLC file
+    out_prefix
+        Prefix for output ALLC file
     num_upstr_bases
         Number of upstream base(s) of the C base to include in ALLC context column,
         usually use 0 for normal BS-seq, 1 for NOMe-seq.
@@ -849,6 +835,19 @@ def bam_to_allc(
     buffer_line_number = 100000
     tabix = True
 
+    stats = {}
+    genome_cov_dup = compute_genome_coverage(bam_path, min_mapq, min_base_quality, keep_dup=True)
+    genome_cov_dedup = compute_genome_coverage(bam_path, min_mapq, min_base_quality, keep_dup=False)
+    mapped_nuc_dup = compute_mapped_nucleotides(bam_path, min_mapq, min_base_quality, keep_dup=True)
+    mapped_nuc_dedup = compute_mapped_nucleotides(bam_path, min_mapq, min_base_quality, keep_dup=False)
+
+    stats.update(
+        {f"allc_input_genome_coverage_dup" : genome_cov_dup,
+         f"allc_input_genome_coverage_dedup" : genome_cov_dedup,
+         f"allc_input_mapped_bp_dup" : mapped_nuc_dup,
+         f"allc_input_mapped_bp_dedup" : mapped_nuc_dedup}
+    )
+    
     # Check fasta index
     if not pathlib.Path(reference_fasta).exists():
         raise FileNotFoundError(f"Reference fasta not found at {reference_fasta}.")
@@ -857,7 +856,7 @@ def bam_to_allc(
     fai_df = _read_faidx(pathlib.Path(reference_fasta + ".fai"))
 
     if convert_bam_strandness:
-        temp_bam_path = f"{output_path}.temp.bam"
+        temp_bam_path = f"{out_prefix}.temp.bam"
         _convert_bam_strandness(bam_path, temp_bam_path)
         bam_path = temp_bam_path
 
@@ -874,16 +873,9 @@ def bam_to_allc(
             f"BAM file contain unknown chromosomes: {unknown_chroms}\n"
             "Make sure you use the same genome FASTA file for mapping and bam-to-allc."
         )
-
+    
     # Output path
-    input_path = pathlib.Path(bam_path)
-    file_dir = input_path.parent
-    if output_path is None:
-        allc_name = "allc_" + input_path.name.split(".")[0] + ".tsv.gz"
-        output_path = str(file_dir / allc_name)
-    else:
-        if not output_path.endswith(".gz"):
-            output_path += ".gz"
+    output_path = f"{out_prefix}.allc.tsv.gz"
 
     result = _bam_to_allc_worker(
         bam_path,
@@ -900,36 +892,46 @@ def bam_to_allc(
         tabix=tabix,
         save_count_df=save_count_df,
     )
+
+    if control_chrom:
+        control_output_path = f"{out_prefix}_control.allc.tsv.gz"
+        
+        result = _bam_to_allc_worker(
+            bam_path,
+            reference_fasta,
+            fai_df,
+            control_output_path,
+            region=control_chrom,
+            num_upstr_bases=1,
+            num_downstr_bases=3,
+            buffer_line_number=buffer_line_number,
+            min_mapq=min_mapq,
+            min_base_quality=min_base_quality,
+            compress_level=compress_level,
+            tabix=False,
+            save_count_df=False,
+        )
+
+        control_mcg_fraction, control_mch_fraction = control_stats(control_output_path, control_chrom)
+
+        stats.update(
+            {f"mCG/CG_{control_chrom}" : control_mcg_fraction,
+             f"mCH/CH_{control_chrom}" : control_mch_fraction}
+        )
+
+        subprocess.check_call(["rm", "-f", f"{control_output_path}"])
+
+    global_mcg_fraction, global_mch_fraction = global_stats(output_path, control_chrom)
     
-    chrL_output_path = output_path.replace(".allc", "_chrL.allc")
-    
-    
-    result = _bam_to_allc_worker(
-        bam_path,
-        reference_fasta,
-        fai_df,
-        chrL_output_path,
-        region="chrL",
-        num_upstr_bases=1,
-        num_downstr_bases=3,
-        buffer_line_number=buffer_line_number,
-        min_mapq=min_mapq,
-        min_base_quality=min_base_quality,
-        compress_level=compress_level,
-        tabix=False,
-        save_count_df=False,
+    stats.update(
+        {f"mCG/CG_global" : global_mcg_fraction,
+         f"mCH/CH_global" : global_mch_fraction}
     )
 
-    chrL_mcg_fraction, chrL_mch_fraction = chrL_stats(chrL_output_path)
-    global_mcg_fraction, global_mch_fraction = global_stats(output_path)
-
-    methylation_stats = [chrL_mcg_fraction, chrL_mch_fraction,
-                         global_mcg_fraction, global_mch_fraction]
-    methylation_stats = [str(i) for i in methylation_stats]
+    stats_path = f"{out_prefix}_methylation_stats.txt"
     
-    with open(output_path + "_methylation_stats.txt","w") as f:
-        f.write("\t".join(["mCG/CG_chrL", "mCH/CH_chrL", "mCG/CG_global", "mCH/CH_global"]) + "\n")
-        f.write("\t".join(methylation_stats) + "\n")
+    stats_df = pd.DataFrame.from_dict(stats, orient="index").T
+    stats_df.to_csv(stats_path, index=False, sep="\t")
 
     # clean up temp bam
     if convert_bam_strandness:
@@ -937,6 +939,6 @@ def bam_to_allc(
         subprocess.check_call(["rm", "-f", bam_path])
         subprocess.check_call(["rm", "-f", f"{bam_path}.bai"])
 
-    subprocess.check_call(["rm", "-f", f"{chrL_output_path}"])
+    
 
     return result

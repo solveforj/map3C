@@ -15,13 +15,7 @@ def get_all_stats(wildcards):
     if config["contacts"]["call"]["call_protocol"] != "none":
         stats_files.append(f"{wildcards.id}_pairs_stats.txt")  
     if config["read_analysis"]["allc"]["allc_protocol"] != "none" and mode != "dna":
-        stats_files.append(f"{wildcards.id}.allc.tsv.gz_methylation_stats.txt")  
-    if config["read_duplicates"]["duplicate_protocol"] != "none" and mode != "dna":
-        stats_files.append(f"{wildcards.id}_mkdup_sorted.bam")  
-    if config["contacts"]["call"]["call_protocol"] != "none":
-        stats_files.append(f"{wildcards.id}_trimmed_sorted.bam")  
-    if config["read_analysis"]["mask"]["mask_protocol"] != "none":
-        stats_files.append(f"{wildcards.id}_masked_sorted.bam")  
+        stats_files.append(f"{wildcards.id}_methylation_stats.txt")  
 
     return stats_files
 

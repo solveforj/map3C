@@ -17,22 +17,6 @@ rule mark_duplicates:
         dupsifter -s -o {output.bam} -O {output.stats} {params.extra} {params.reference_path}  {input} 
         """
 
-rule coord_sort_mkdup:
-    input:
-        rules.mark_duplicates.output.bam
-    output:
-        temp("{id}_mkdup_sorted.bam")
-    params:
-        out_prefix=lambda wildcards: f"{wildcards.id}"
-    conda:
-        "map3C_utils"
-    threads: 
-        10
-    shell:
-        """
-        samtools sort -@ {threads} -o {output} {input}
-        """
-
 rule duplicates_stats:
     input:
         stats = rules.mark_duplicates.output.stats

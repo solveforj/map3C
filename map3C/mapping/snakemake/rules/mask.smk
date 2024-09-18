@@ -1,7 +1,7 @@
 
 rule mask:
     input:
-        get_trimmed_bam
+        rules.generate_contacts.output.bam
     output:
         temp("{id}_masked.bam"),
     params:

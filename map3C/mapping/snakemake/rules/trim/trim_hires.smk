@@ -59,7 +59,7 @@ rule trim_stats:
             input_data = seqtk.readlines()[0].strip().split()
             out_dna_reads = input_data[0]
     
-            f.write("\t".join(["pre_trim_reads", "post_trim_rna_pairs", "post_trim_dna_pairs"]) + "\n")
+            f.write("\t".join(["pre_trim_pairs", "post_trim_rna_pairs", "post_trim_dna_pairs"]) + "\n")
             f.write("\t".join([in_reads, out_rna_reads, out_dna_reads]) + "\n")
     
 trim_output = "separate"

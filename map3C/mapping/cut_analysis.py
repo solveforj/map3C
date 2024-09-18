@@ -344,59 +344,6 @@ def get_cut_site_spans(site, seq):
     spans = [i.span() for i in re.finditer(site, seq)]
     return spans
 
-
-def closest_restriction_site(chrom, pos, restriction_sites_dict, rule="closest"):
-
-    results = {}
-    
-    for enzyme in restriction_sites_dict:
-        results[enzyme] = {}
-        
-        restriction_sites_chrom = restriction_sites_dict[enzyme][chrom]
-
-        rs_chrom_len = len(restriction_sites_chrom)
-        
-        insert = bisect.bisect_left(restriction_sites_chrom, pos)
-
-        if insert <= 0:
-            fragment = f"{chrom}_{insert}_{insert}"
-            
-            upstream_pos = restriction_sites_chrom[insert] - 1
-            downstream_pos = restriction_sites_chrom[insert] - 1
-
-        elif insert >= rs_chrom_len:
-            fragment = f"{chrom}_{insert-1}_{insert-1}"
-            
-            upstream_pos = restriction_sites_chrom[insert-1] - 1
-            downstream_pos = restriction_sites_chrom[insert-1] - 1
-
-        else:
-            fragment = f"{chrom}_{insert-1}_{insert}"
-    
-            upstream_pos = restriction_sites_chrom[insert-1] - 1
-            downstream_pos = restriction_sites_chrom[insert] - 1
-    
-        upstream_dist = np.abs(upstream_pos - pos)
-        downstream_dist = np.abs(downstream_pos - pos)
-
-        if rule == "closest":
-            if upstream_dist < downstream_dist:
-                dist = upstream_dist
-                site_pos = upstream_pos
-            else:
-                dist = downstream_dist
-                site_pos = downstream_pos
-        elif rule == "upstream":
-            dist = upstream_dist
-            site_pos = upstream_pos
-        elif rule == "downstream":
-            dist = downstream_dist
-            site_pos = downstream_pos
-
-        results[enzyme] = {"site_pos":site_pos, "dist":dist, "fragment": fragment}
-
-    return results
-
 def classify_breakpoint(r5_site_info, r3_site_info, max_cut_site_distance):
 
     contact_classes = []
@@ -436,57 +383,25 @@ def classify_breakpoint(r5_site_info, r3_site_info, max_cut_site_distance):
 
     return contact_classes, contact_enzyme
 
-def split_pair_to_restriction_site(read5, read3, restriction_sites, max_cut_site_distance):
+def split_pair_to_restriction_site(alignment5, alignment3, max_cut_site_distance):
 
-    if read5.is_forward:
-        r5_rs = closest_restriction_site(read5.reference_name, 
-                                read5.reference_end,
-                                restriction_sites)
-    else:
-        r5_rs = closest_restriction_site(read5.reference_name, 
-                        read5.reference_start,
-                        restriction_sites) 
-
-    if read3.is_forward:
-        r3_rs = closest_restriction_site(read3.reference_name, 
-                                        read3.reference_start,
-                                        restriction_sites)
-    else:
-        r3_rs = closest_restriction_site(read3.reference_name, 
-                                        read3.reference_end,
-                                        restriction_sites)
+    r5_rs = alignment5.cut_site3
+    r3_rs = alignment3.cut_site5
 
     bp_class, bp_enzyme = classify_breakpoint(r5_rs, r3_rs, max_cut_site_distance)
 
     return bp_class, bp_enzyme, r5_rs, r3_rs
 
-def gap_pair_to_restriction_site(read5, read3, restriction_sites, max_cut_site_distance):
+def gap_pair_to_restriction_site(alignment5, alignment3, max_cut_site_distance):
 
-    if read5.is_forward:
-        r5_rule = "downstream"
-        r5_pos = read5.reference_end
-    else:
-        r5_rule = "upstream"
-        r5_pos = read5.reference_start
-
-    r5_rs = closest_restriction_site(read5.reference_name, 
-                                     r5_pos, restriction_sites, rule=r5_rule) 
-
-    if read3.is_forward:        
-        r3_rule = "downstream"
-        r3_pos = read3.reference_end
-    else:        
-        r3_rule = "upstream"
-        r3_pos = read3.reference_start
-        
-    r3_rs = closest_restriction_site(read3.reference_name, 
-                                     r3_pos, restriction_sites, rule=r3_rule) 
+    r5_rs = alignment5.cut_site3
+    r3_rs = alignment3.cut_site3
     
     bp_class, bp_enzyme = classify_breakpoint(r5_rs, r3_rs, max_cut_site_distance)
 
     return bp_class, bp_enzyme, r5_rs, r3_rs
 
-class ReadTrimmer:
+class CutAnalysis:
 
     def adjust_split_enzyme(self):
         
@@ -506,34 +421,6 @@ class ReadTrimmer:
         else:
             return self.seg5, self.seg3
 
-    def adjust_split_win(self):
-
-        seg5, seg3 = self.adjust_split_enzyme()
-        
-        if self.overlap > 0:
-            # Handle overlap even if both reads had cut site trimming or neither reads had cut site
-            if self.read5.mapping_quality > self.read3.mapping_quality:
-                r5_cover = True
-            elif self.read5.mapping_quality == self.read3.mapping_quality:
-                r5_len = len(self.read5.query_alignment_sequence)
-                r3_len = len(self.read3.query_alignment_sequence)
-                if r5_len > r3_len:
-                    r5_cover = True
-                elif r5_len == r3_len:
-                    r5_cover = rng.choice([True, False])
-                else:
-                    r5_cover = False
-            else:
-                r5_cover = False
-        
-            if r5_cover:
-                # Trim 3' read
-                seg3 = (seg5[1], seg3[1], seg3[2])
-            else:
-                seg5 = (seg5[0], seg3[0], seg5[2])
-
-        return seg5, seg3
-
     def adjust_split_complete(self):
 
         seg5, seg3 = self.adjust_split_enzyme()
@@ -547,10 +434,6 @@ class ReadTrimmer:
             seg3 = (max_idx, seg3[1], seg3[2])
 
         return seg5, seg3
-
-    def adjust_split_none(self):
-
-        return self.seg5, self.seg3
   
     def create_trimmed_mate(self, read, original_span, adjusted_span, pairs):
 
@@ -639,37 +522,41 @@ class ReadTrimmer:
         new_read.tags = tags
     
         return new_read, new_pairs
-    
-    def trim_mate(self):
-
-        ordered_reads = self.ordered_reads
-        seg_keys = self.seg_keys
-        original_sequence = self.original_sequence
         
-        cut_site_keys = {}
-        overlap_keys = {}
-        cut_site_labels = {}
-        cut_site_classes = {}
+    def process_multi_mate(self):
+
+        seg_keys = self.seg_keys
+        read_parts = self.read_parts
+        original_sequence = self.original_sequence
+        ordered_reads = self.ordered_reads
+            
+        for i in range(len(seg_keys)):
+            span = seg_keys[i]
+            alignment = read_parts[span]
+            alignment.pairs = alignment_info(alignment.read, span, original_sequence)
+            ordered_reads[i] = alignment
     
         adjusted_seg_keys = seg_keys.copy()
         
         for i in range(len(adjusted_seg_keys)-1):
+            alignment5 = ordered_reads[i]
             self.seg5 = adjusted_seg_keys[i]
-            self.pairs5 = ordered_reads[i]["pairs"]
-            self.read5 = ordered_reads[i]["read"]
-            
+            self.pairs5 = alignment5.pairs
+            self.read5 = alignment5.read
+
+            alignment3 = ordered_reads[i+1]
             self.seg3 = adjusted_seg_keys[i+1]
-            self.pairs3 = ordered_reads[i+1]["pairs"]
-            self.read3 = ordered_reads[i+1]["read"]
+            self.pairs3 = alignment3.pairs
+            self.read3 = alignment3.read
 
             self.overlap = self.seg5[1] - self.seg3[0]
             original_overlap = self.overlap
             
             self.total_pairs += 1
 
-            
-            bp_class, bp_enzyme, r5_rs, r3_rs = \
-                split_pair_to_restriction_site(self.read5, self.read3, self.restriction_sites, self.max_cut_site_split_algn_dist)
+            bp_class, bp_enzyme, r5_rs, r3_rs = split_pair_to_restriction_site(alignment5, 
+                                                                               alignment3, 
+                                                                               self.max_cut_site_split_algn_dist)
 
             self.bp_enzyme = bp_enzyme
             self.r5_rs = r5_rs
@@ -679,34 +566,35 @@ class ReadTrimmer:
     
             adjusted_seg_keys[i] = aseg5
             adjusted_seg_keys[i+1] = aseg3
-            cut_site_keys[(i, i+1)] = bp_class
-            cut_site_classes[(i, i+1)] = bp_enzyme
-            overlap_keys[(i, i+1)] = original_overlap
+            self.pairwise_cut_site_options[(i, i+1)] = bp_class
+            self.pairwise_cut_site_assign[(i, i+1)] = bp_enzyme
+            self.pairwise_overlaps[(i, i+1)] = original_overlap
     
-            if i not in cut_site_labels:
-                cut_site_labels[i] = []
-            if i+1 not in cut_site_labels:
-                cut_site_labels[i+1] = []
+            if i not in self.cut_site_tag_info:
+                self.cut_site_tag_info[i] = []
+            if i+1 not in self.cut_site_tag_info:
+                self.cut_site_tag_info[i+1] = []
     
             if bp_enzyme != "artefact":
-                cut_site_labels[i].append("D")
-                cut_site_labels[i+1].append("U")
+                self.cut_site_tag_info[i].append("D")
+                self.cut_site_tag_info[i+1].append("U")
     
         all_keys = list(ordered_reads.keys())
         
         for key in all_keys:
-            ordered_reads[key]["adjusted_span"] = adjusted_seg_keys[key]
+            alignment = ordered_reads[key]
+            alignment.adjusted_span = adjusted_seg_keys[key]
 
-            if ordered_reads[key]["span"] == ordered_reads[key]["adjusted_span"]:
-                trimmed_read = ordered_reads[key]["read"]
-                new_pairs = ordered_reads[key]["pairs"]
+            if alignment.span == alignment.adjusted_span:
+                trimmed_read = alignment.read
+                new_pairs = alignment.pairs
                 read_is_trimmed = False
             else:
                 trimmed_read, new_pairs = self.create_trimmed_mate(
-                    ordered_reads[key]["read"], 
-                    ordered_reads[key]["span"], 
-                    ordered_reads[key]["adjusted_span"], 
-                    ordered_reads[key]["pairs"]
+                    alignment.read, 
+                    alignment.span, 
+                    alignment.adjusted_span, 
+                    alignment.pairs
                 )
                 read_is_trimmed = True
     
@@ -714,68 +602,20 @@ class ReadTrimmer:
                 del ordered_reads[key] # Delete read from dictionary 
                 self.illegal_post_trim += 1
             else:
-                ordered_reads[key]["trimmed_read"] = trimmed_read
-                ordered_reads[key]["new_pairs"] = new_pairs
-                ordered_reads[key]["is_trimmed"] = read_is_trimmed
-
-        self.cut_site_keys = cut_site_keys
-        self.cut_site_labels = cut_site_labels
-        self.cut_site_classes = cut_site_classes
-        self.overlap_keys = overlap_keys
-        
-        return
-        
-    def process_mate(self):
-
-        seg_keys = self.seg_keys
-        has_split = self.has_split
-        read_parts = self.read_parts
-        original_sequence = self.original_sequence
-        
-        ordered_reads = OrderedDict()
-
-        if len(seg_keys) == 1:
-            read = read_parts[seg_keys[0]]
-            span = seg_keys[0]
-            ordered_reads[0] = {"read" : read,
-                                "span" : span,
-                                "pairs" : None,
-                                "adjusted_span" : span,
-                                "trimmed_read" : read,
-                                "new_pairs" : None,
-                                "is_trimmed" : False
-                               }
-
-            self.ordered_reads = ordered_reads
-            self.cut_site_keys = {}
-            self.cut_site_labels = {}
-            self.cut_site_classes = {}
-            self.overlap_keys = {}
-
-            return
-            
-        for i in range(len(seg_keys)):
-            read = read_parts[seg_keys[i]]
-            span = seg_keys[i]
-            ordered_reads[i] = {"read" : read,
-                                "span" : span,
-                                "pairs" : alignment_info(read, span, original_sequence),
-                               }
+                alignment.trimmed_read = trimmed_read
+                alignment.new_pairs = new_pairs
+                alignment.is_trimmed = read_is_trimmed
 
         self.ordered_reads = ordered_reads
-
-        self.trim_mate()
-
+        
         return
     
     def __init__(self,
                  seg_keys, 
                  original_sequence = "",
                  read_parts = {},
-                 restriction_sites = {},
                  header = None,
                  full_bam = False,
-                 trim_method = "winner",
                  bisulfite=False,
                  max_cut_site_split_algn_dist=20,
                  max_cut_site_whole_algn_dist=500
@@ -786,36 +626,100 @@ class ReadTrimmer:
         self.first_trim = 0
         self.second_trim = 0
         self.total_pairs = 0
+
+        self.cut_site_tag_info = {}
+        self.pairwise_cut_site_options = {}
+        self.pairwise_overlaps = {}
+        self.pairwise_cut_site_assign = {}
+
+        self.ordered_reads = OrderedDict()
         
         if len(seg_keys) == 0:
-            self.ordered_reads = OrderedDict()
             self.has_split = False
-            self.cut_site_keys = {}
-            self.cut_site_labels = {}
-            self.overlap_keys = {}
-            self.cut_site_classes = {}
-            self.original_sequence = None
             return
-            
-        self.has_split = read_parts[seg_keys[0]].has_tag("SA")
-            
+
+        self.has_split = read_parts[seg_keys[0]].has_split
         self.seg_keys = seg_keys
         self.original_sequence = original_sequence
         self.read_parts = read_parts
-        self.restriction_sites = restriction_sites
         self.header = header
         self.full_bam = full_bam
         
-        if trim_method == "winner":
-            self.adjust_split = self.adjust_split_win
-        elif trim_method == "complete":
-            self.adjust_split = self.adjust_split_complete
-        elif trim_method == "none":
-            self.adjust_split = self.adjust_split_none
+        if len(seg_keys) == 1:
+            alignment = read_parts[seg_keys[0]]
+            self.ordered_reads[0] = alignment
+            return
+
+        self.adjust_split = self.adjust_split_complete
 
         self.bisulfite = bisulfite
         self.max_cut_site_split_algn_dist = max_cut_site_split_algn_dist
         self.max_cut_site_whole_algn_dist = max_cut_site_whole_algn_dist
 
-        self.process_mate()
+        self.process_multi_mate()
+
+class CutAnalysisNoTrim(CutAnalysis):
+    
+    def process_multi_mate(self):
+
+        seg_keys = self.seg_keys
+        read_parts = self.read_parts
+        original_sequence = self.original_sequence
+        ordered_reads = self.ordered_reads
+            
+        for i in range(len(seg_keys)):
+            span = seg_keys[i]
+            alignment = read_parts[span]
+            ordered_reads[i] = alignment
+    
         
+        for i in range(len(seg_keys)-1):
+            alignment5 = ordered_reads[i]
+            self.seg5 = seg_keys[i]
+            
+            alignment3 = ordered_reads[i+1]
+            self.seg3 = seg_keys[i+1]
+
+            self.overlap = self.seg5[1] - self.seg3[0]
+            original_overlap = self.overlap
+            
+            self.total_pairs += 1
+
+            bp_class, bp_enzyme, r5_rs, r3_rs = split_pair_to_restriction_site(alignment5, 
+                                                                               alignment3, 
+                                                                               self.max_cut_site_split_algn_dist)
+
+            self.bp_enzyme = bp_enzyme
+            self.r5_rs = r5_rs
+            self.r3_rs = r3_rs
+    
+            self.pairwise_cut_site_options[(i, i+1)] = bp_class
+            self.pairwise_cut_site_assign[(i, i+1)] = bp_enzyme
+            self.pairwise_overlaps[(i, i+1)] = original_overlap
+    
+            if i not in self.cut_site_tag_info:
+                self.cut_site_tag_info[i] = []
+            if i+1 not in self.cut_site_tag_info:
+                self.cut_site_tag_info[i+1] = []
+    
+            if bp_enzyme != "artefact":
+                self.cut_site_tag_info[i].append("D")
+                self.cut_site_tag_info[i+1].append("U")
+    
+        all_keys = list(ordered_reads.keys())
+        
+        for key in all_keys:
+            alignment = ordered_reads[key]
+
+            trimmed_read = alignment.read
+            new_pairs = alignment.pairs
+            read_is_trimmed = False
+            
+            alignment.trimmed_read = trimmed_read
+            alignment.new_pairs = new_pairs
+            alignment.is_trimmed = read_is_trimmed
+
+        self.ordered_reads = ordered_reads
+        
+        return
+    

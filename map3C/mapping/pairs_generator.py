@@ -1,5 +1,5 @@
 from Bio.bgzf import BgzfWriter
-from .read_trimmer import gap_pair_to_restriction_site
+from .cut_analysis import gap_pair_to_restriction_site
 import re
 from bisect import bisect_left, bisect_right
 
@@ -92,12 +92,17 @@ class Pair:
             "phase2" : f"\t{self.phase2}",
         })
 
+
+    def add_contact_class(self):
+        self._line.update({
+            "contact_class" : f"\t{self.contact_class}",
+        })        
+
     def add_metadata(self):
 
         self._line.update({
             "rule" : f"\t{self.rule}",
             "reads" : f"\t{self.reads}",
-            "contact_class" : f"\t{self.contact_class}",
             "multimap_overlap" : f"\t{self.multimap_overlap}",
             "cut_site_locs" : f"\t{self.cut_site_locs}",
         })
@@ -113,12 +118,12 @@ class Pair:
                 f"{self._line['pos1']}"
                 f"{self._line['strand2']}"
                 f"{self._line['strand1']}" 
-                f"\t{self.type2}{self.type1}"     
+                f"\t{self.type2}{self.type1}"
+                f"{self._line['contact_class']}"
                 f"{self._line['phase2']}"
-                f"{self._line['phase1']}"  
+                f"{self._line['phase1']}"
                 f"{self._line['rule']}"
                 f"{self._line['reads']}"
-                f"{self._line['contact_class']}"
                 f"{self._line['multimap_overlap']}"
                 f"{self._line['cut_site_locs']}\n"
             )
@@ -131,12 +136,12 @@ class Pair:
                 f"{self._line['pos2']}"
                 f"{self._line['strand1']}"
                 f"{self._line['strand2']}"
-                f"\t{self.type1}{self.type2}"         
+                f"\t{self.type1}{self.type2}"
+                f"{self._line['contact_class']}"
                 f"{self._line['phase1']}"
                 f"{self._line['phase2']}"   
                 f"{self._line['rule']}"
                 f"{self._line['reads']}"
-                f"{self._line['contact_class']}"
                 f"{self._line['multimap_overlap']}"
                 f"{self._line['cut_site_locs']}\n"
             )
@@ -148,7 +153,7 @@ class PairsGenerator:
                   "P": "alignments_with_phase",
                   "N": "alignments_without_phase"}
     
-    def write_header(self, handle, artefacts=False):
+    def write_header(self, handle):
         
         handle.write("## pairs format v1.0\n")
 
@@ -162,18 +167,13 @@ class PairsGenerator:
                     handle.write(f'#chromsize: {chrom} {str(self.chrom_sizes[chrom])}\n')
             else:
                 handle.write(f'#chromsize: {chrom} {str(self.chrom_sizes[chrom])}\n')
-        base_columns = "#columns: readID chrom1 pos1 chrom2 pos2 strand1 strand2 pair_type"
+        base_columns = "#columns: readID chrom1 pos1 chrom2 pos2 strand1 strand2 pair_type contact_class"
 
-        if artefacts:
-            if self.read_phaser and self.include_artefacts:
-                base_columns += " phase0 phase1"
-        else:
-            if self.read_phaser:
-                base_columns += " phase0 phase1"
+        if self.read_phaser:
+            base_columns += " phase0 phase1"
 
-            
         if self.full_pairs:
-            base_columns += " rule reads contact_class multimap_overlap cut_site_locs"
+            base_columns += " rule reads multimap_overlap cut_site_locs"
 
         base_columns += "\n"
         handle.write(base_columns)
@@ -218,27 +218,32 @@ class PairsGenerator:
         return False
 
     
-    def classify_pair(self, algn1,algn2, pair_index,
-                         R1_trimmer,R2_trimmer,rule):
+    def classify_pair(self,
+                      algn1,
+                      algn2, 
+                      pair_index,
+                      R1_readcut,
+                      R2_readcut,
+                      rule):
 
-        R1_cs_keys = R1_trimmer.cut_site_keys
-        R2_cs_keys = R2_trimmer.cut_site_keys
+        R1_pairwise_cut_site_options = R1_readcut.pairwise_cut_site_options
+        R2_pairwise_cut_site_options = R2_readcut.pairwise_cut_site_options
     
-        R1_cs_classes = R1_trimmer.cut_site_classes
-        R2_cs_classes = R2_trimmer.cut_site_classes
+        R1_pairwise_cut_site_assign = R1_readcut.pairwise_cut_site_assign
+        R2_pairwise_cut_site_assign = R2_readcut.pairwise_cut_site_assign
     
-        R1_overlap_keys = R1_trimmer.overlap_keys
-        R2_overlap_keys = R2_trimmer.overlap_keys
+        R1_pairwise_overlaps = R1_readcut.pairwise_overlaps
+        R2_pairwise_overlaps = R2_readcut.pairwise_overlaps
         
         overlap = 0
-        cs_locs = ["na"]
+        cs_options = ["na"]
     
         if not algn1["is_mapped"] or not algn1["is_unique"]:
             ct = "na"
-            return ct, overlap, cs_locs
+            return ct, overlap, cs_options
         if not algn2["is_mapped"] or not algn2["is_unique"]:
             ct = "na"
-            return ct, overlap, cs_locs
+            return ct, overlap, cs_options
 
         contact_reads = pair_index[1]
 
@@ -248,88 +253,92 @@ class PairsGenerator:
                 idx5 = algn1["idx"]
                 idx3 = algn2["idx"]
                 cs_key = (idx5, idx3)
-                if cs_key not in R1_cs_classes:
+                if cs_key not in R1_pairwise_cut_site_assign:
                     ct = "artefact_chimera"
-                elif R1_cs_classes[cs_key] == "artefact":
+                elif R1_pairwise_cut_site_assign[cs_key] == "artefact":
                     ct = "artefact_chimera"
-                    overlap = R1_overlap_keys[cs_key]
-                    cs_locs = R1_cs_keys[cs_key]
+                    overlap = R1_pairwise_overlaps[cs_key]
+                    cs_options = R1_pairwise_cut_site_options[cs_key]
                 else:
-                    ct = R1_cs_classes[cs_key]
-                    overlap = R1_overlap_keys[cs_key]
-                    cs_locs = R1_cs_keys[cs_key]
+                    ct = R1_pairwise_cut_site_assign[cs_key]
+                    overlap = R1_pairwise_overlaps[cs_key]
+                    cs_options = R1_pairwise_cut_site_options[cs_key]
             # Pairtools reports 5' fragment before 3' fragment
             elif contact_reads == "R2": 
                 idx5 = algn1["idx"]
                 idx3 = algn2["idx"]
                 cs_key = (idx5, idx3)
                 
-                if cs_key not in R2_cs_classes:
+                if cs_key not in R2_pairwise_cut_site_assign:
                     ct = "artefact_chimera"
-                elif R2_cs_classes[cs_key] == "artefact":
+                elif R2_pairwise_cut_site_assign[cs_key] == "artefact":
                     ct = "artefact_chimera"
-                    overlap = R2_overlap_keys[cs_key]
-                    cs_locs = R2_cs_keys[cs_key]
+                    overlap = R2_pairwise_overlaps[cs_key]
+                    cs_options = R2_pairwise_cut_site_options[cs_key]
                 else:
-                    ct = R2_cs_classes[cs_key]
-                    overlap = R2_overlap_keys[cs_key]
-                    cs_locs = R2_cs_keys[cs_key]
-            elif contact_reads == "R1&2" or contact_reads == "R1-2":
-                bp_class, bp_enzyme, r5_rs, r3_rs = gap_pair_to_restriction_site(algn1["read"], 
-                                                                                 algn2["read"], 
-                                                                                 self.restriction_sites, 
-                                                                                 self.max_cut_site_whole_algn_dist)
+                    ct = R2_pairwise_cut_site_assign[cs_key]
+                    overlap = R2_pairwise_overlaps[cs_key]
+                    cs_options = R2_pairwise_cut_site_options[cs_key]
+            elif contact_reads in ["R1&2", "R1-2", "comb"]:
+                if algn1["mate"] == "R1":
+                    alignment1 = R1_readcut.ordered_reads[algn1["idx"]]
+                elif algn1["mate"] == "R2":
+                    alignment1 = R2_readcut.ordered_reads[algn1["idx"]]
+
+                if algn2["mate"] == "R1":
+                    alignment2 = R1_readcut.ordered_reads[algn2["idx"]]
+                elif algn2["mate"] == "R2":
+                    alignment2 = R2_readcut.ordered_reads[algn2["idx"]]
+                
+                _, bp_enzyme, _, _ = gap_pair_to_restriction_site(alignment1, alignment2, self.max_cut_site_whole_algn_dist)
+                
                 if bp_enzyme != "artefact":
                     ct = "gap"
                 else:
                     ct = "artefact_gap"
-                    
-            elif contact_reads =="comb":
-                bp_class, bp_enzyme, r5_rs, r3_rs = gap_pair_to_restriction_site(algn1["read"], 
-                                                                                 algn2["read"], 
-                                                                                 self.restriction_sites, 
-                                                                                 self.max_cut_site_whole_algn_dist)
-                if bp_enzyme != "artefact":
-                    ct = "gap"
-                else:
-                    ct = "artefact_gap"
-                    
-        #elif algn1["type"] == "R":
+
         elif contact_reads == "R2_rescue":
-            if (0, 1) not in R2_cs_classes:
+            if (0, 1) not in R2_pairwise_cut_site_assign:
                 ct = "artefact_chimera"
-            elif R2_cs_classes[(0, 1)] == "artefact":
+            elif R2_pairwise_cut_site_assign[(0, 1)] == "artefact":
                 ct = "artefact_chimera"
-                overlap = R2_overlap_keys[(0, 1)]
-                cs_locs = R2_cs_keys[(0, 1)]
+                overlap = R2_pairwise_overlaps[(0, 1)]
+                cs_options = R2_pairwise_cut_site_options[(0, 1)]
             else:
-                ct = R2_cs_classes[(0, 1)]
-                overlap = R2_overlap_keys[(0, 1)]
-                cs_locs = R2_cs_keys[(0, 1)]
-        #elif algn2["type"] == "R":
+                ct = R2_pairwise_cut_site_assign[(0, 1)]
+                overlap = R2_pairwise_overlaps[(0, 1)]
+                cs_options = R2_pairwise_cut_site_options[(0, 1)]
         elif contact_reads == "R1_rescue":
-            if (0, 1) not in R1_cs_classes:
+            if (0, 1) not in R1_pairwise_cut_site_assign:
                 ct = "artefact_chimera"
-            elif R1_cs_classes[(0, 1)] == "artefact":
+            elif R1_pairwise_cut_site_assign[(0, 1)] == "artefact":
                 ct = "artefact_chimera"
-                overlap = R1_overlap_keys[(0, 1)]
-                cs_locs = R1_cs_keys[(0, 1)]
+                overlap = R1_pairwise_overlaps[(0, 1)]
+                cs_options = R1_pairwise_cut_site_options[(0, 1)]
             else:
-                ct = R1_cs_classes[(0, 1)]
-                overlap = R1_overlap_keys[(0, 1)]
-                cs_locs = R1_cs_keys[(0, 1)]
+                ct = R1_pairwise_cut_site_assign[(0, 1)]
+                overlap = R1_pairwise_overlaps[(0, 1)]
+                cs_options = R1_pairwise_cut_site_options[(0, 1)]
     
         elif algn1["type"] == "U" and algn2["type"] == "U":
-            bp_class, bp_enzyme, r5_rs, r3_rs = gap_pair_to_restriction_site(algn1["read"], 
-                                                                             algn2["read"], 
-                                                                             self.restriction_sites, 
-                                                                             self.max_cut_site_whole_algn_dist)
+            if algn1["mate"] == "R1":
+                alignment1 = R1_readcut.ordered_reads[algn1["idx"]]
+            elif algn1["mate"] == "R2":
+                alignment1 = R2_readcut.ordered_reads[algn1["idx"]]
+
+            if algn2["mate"] == "R1":
+                alignment2 = R1_readcut.ordered_reads[algn2["idx"]]
+            elif algn2["mate"] == "R2":
+                alignment2 = R2_readcut.ordered_reads[algn2["idx"]]
+
+            _, bp_enzyme, _, _ = gap_pair_to_restriction_site(alignment1, alignment2, self.max_cut_site_whole_algn_dist)
+            
             if bp_enzyme != "artefact":
                 ct = "gap"
             else:
                 ct = "artefact_gap"
     
-        return ct, overlap, cs_locs
+        return ct, overlap, cs_options
 
     def contact_pair_is_intra_short(self, pair):
 
@@ -423,6 +432,10 @@ class PairsGenerator:
 
         pair.add_metadata()
 
+    def contact_class_pair(self, pair):
+
+        pair.add_contact_class()
+
     def all_pair(self, pair):
 
         if pair.is_all():
@@ -433,11 +446,6 @@ class PairsGenerator:
         if pair.passed_filters:
             self.contacts.write(str(pair))
 
-    def write_artefact(self, pair):
-
-        if pair.passed_filters:
-            self.artefacts.write(str(pair))
-
     def build_artefact_funcs(self):
         funcs = []
         funcs.append(self.artefact_pair_is_intra_short)
@@ -446,16 +454,15 @@ class PairsGenerator:
             funcs.append(self.blacklist_pair)
         if self.chrom_regex:
             funcs.append(self.chrom_regex_pair)
-        if self.read_phaser and self.include_artefacts:
+        if self.read_phaser:
             funcs.append(self.phase_pair)
         if self.full_pairs:
             funcs.append(self.metadata_pair)
         if self.remove_all:
             funcs.append(self.all_pair)
-        if self.include_artefacts:
-            funcs.append(self.write_contact)
 
-        funcs.append(self.write_artefact)
+        funcs.append(self.contact_class_pair)
+        funcs.append(self.write_contact)
         
         self.artefact_funcs = funcs
 
@@ -474,14 +481,19 @@ class PairsGenerator:
         if self.remove_all:
             funcs.append(self.all_pair)
 
+        funcs.append(self.contact_class_pair)
         funcs.append(self.write_contact)
         
         self.contact_funcs = funcs
             
 
-    def write_pairs(self, algn1, algn2, readID, pair_index, R1_trimmer, R2_trimmer, rule):
+    def write_pairs(self, c, readID, R1_readcut, R2_readcut, rule):
 
-        ct, overlap, cs_locs = self.classify_pair(algn1, algn2, pair_index, R1_trimmer, R2_trimmer, rule)
+        algn1 = c[0]
+        algn2 = c[1]
+        pair_index = c[2]
+
+        ct, overlap, cs_locs = self.classify_pair(algn1, algn2, pair_index, R1_readcut, R2_readcut, rule)
 
         if ct == "na":
             return
@@ -491,23 +503,15 @@ class PairsGenerator:
             for filter in self.artefact_funcs:
                 filter(pair)
 
-            #if pair.passed_filters:
-            #    self.artefacts.write(str(pair))
-
         elif pair.pair_class == "contact":
 
             for filter in self.contact_funcs:
                 filter(pair)
-
-            #if pair.passed_filters:
-            #    self.contacts.write(str(pair))
         
     def __init__(self, 
                  contacts_path, 
                  chrom_sizes,
                  chrom_orders,
-                 restriction_sites,
-                 artefacts_path, 
                  blacklist=None,
                  min_blacklist_overlap_length=1,
                  min_blacklist_overlap_ratio=0.5,
@@ -523,15 +527,12 @@ class PairsGenerator:
                  min_inward_dist_artefacts=1000,
                  min_outward_dist_artefacts=1000,
                  min_same_strand_dist_artefacts=0,
-                 include_artefacts=False,
                  max_cut_site_whole_algn_dist = 500
                 ):
         
-        self.artefacts_path = artefacts_path
         self.contacts_path = contacts_path
         self.chrom_sizes = chrom_sizes
         self.chrom_orders = chrom_orders
-        self.restriction_sites = restriction_sites
         
         self.blacklist = blacklist
         self.min_blacklist_overlap_length = min_blacklist_overlap_length
@@ -552,8 +553,6 @@ class PairsGenerator:
         self.min_inward_dist_artefacts = min_inward_dist_artefacts
         self.min_outward_dist_artefacts = min_outward_dist_artefacts
         self.min_same_strand_dist_artefacts = min_same_strand_dist_artefacts
-
-        self.include_artefacts = include_artefacts
         
         self.max_cut_site_whole_algn_dist = max_cut_site_whole_algn_dist
 
@@ -565,14 +564,10 @@ class PairsGenerator:
         self.build_artefact_funcs()
         
     def __enter__(self):
-        self.artefacts = BgzfWriter(self.artefacts_path, 'wb')
-        self.write_header(self.artefacts, artefacts=True)
-            
         self.contacts = BgzfWriter(self.contacts_path, 'wb')
         self.write_header(self.contacts)
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        self.artefacts.close()
         self.contacts.close()
         

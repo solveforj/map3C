@@ -289,11 +289,17 @@ def format_pair(
     if pair_type in ["R2", "R1", "R1&2"]:
         hic_algn1["pos"] = hic_algn1["pos3"]
         hic_algn2["pos"] = hic_algn2["pos5"]
+    elif pair_type in ["R1_rescue", "R2_rescue"]:
+        hic_algn1["pos"] = hic_algn1["pos3"]
+        hic_algn2["pos"] = hic_algn2["pos5"]
     elif pair_type == "R1-2":
         hic_algn1["pos"] = hic_algn1["pos3"]
         hic_algn2["pos"] = hic_algn2["pos3"]
+    elif pair_type == "comb":
+        hic_algn1["pos"] = hic_algn1["pos3"]
+        hic_algn2["pos"] = hic_algn2["pos3"]
 
-    return [hic_algn1, hic_algn2, pair_index]
+    return (hic_algn1, hic_algn2, pair_index)
 
 
 
@@ -726,7 +732,7 @@ def expand_combinations(output_iter):
             lj = leg_keys[j]
             t_comb = tuple(sorted([li, lj]))
             if t_comb not in existing:
-                new_iter.append((legs[li], legs[lj], ('x', "comb")))
+                new_iter.append(format_pair(legs[li], legs[lj], ('x', "comb")))
             
     output_iter += new_iter
     
@@ -737,15 +743,15 @@ def contact_iter(R1, R2, min_mapq=30, max_molecule_size=750, max_inter_align_gap
     R1_parsed = []
     for i in R1:
         read_data = R1[i]
-        read = read_data["trimmed_read"]
-        span = read_data["adjusted_span"]
+        read = read_data.trimmed_read
+        span = read_data.adjusted_span
         R1_parsed.append(parse_read(read, span, i, "R1", min_mapq))
     
     R2_parsed = []
     for i in R2:
         read_data = R2[i]
-        read = read_data["trimmed_read"]
-        span = read_data["adjusted_span"]
+        read = read_data.trimmed_read
+        span = read_data.adjusted_span
         R2_parsed.append(parse_read(read, span, i, "R2", min_mapq))
 
     if len(R1_parsed) > 0:
@@ -778,10 +784,10 @@ def contact_iter(R1, R2, min_mapq=30, max_molecule_size=750, max_inter_align_gap
         # Walk was rescued as a simple walk:
         if rescued_linear_side == 1 and "gap" not in hic_algn1:
             pair_index = (1, "R1_rescue")
-            output_iter = [(hic_algn1, R1_parsed[1], pair_index)]
+            output_iter = [format_pair(hic_algn1, R1_parsed[1], pair_index)]
         elif rescued_linear_side == 2 and "gap" not in hic_algn2:
             pair_index = (1, "R2_rescue")
-            output_iter = [(hic_algn2, R2_parsed[1], pair_index)]
+            output_iter = [format_pair(hic_algn2, R2_parsed[1], pair_index)]
         # Walk is unrescuable:
         else:
             rule = "all"

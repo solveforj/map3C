@@ -15,13 +15,13 @@ with open(barcodes) as f:
 def get_R1_fastq(wildcards):
     plate = wildcards.plate
     fastq_dir = run_info.loc[plate]["fastq_dir"]
-    fastq_files = glob(os.path.join(fastq_dir, f"*{plate}[-_]*R1*.fastq.gz"))
+    fastq_files = sorted(glob(os.path.join(fastq_dir, f"*{plate}[-_]*R1*.fastq.gz")))
     return fastq_files
 
 def get_R2_fastq(wildcards):
     plate = wildcards.plate
     fastq_dir = run_info.loc[plate]["fastq_dir"]
-    fastq_files = glob(os.path.join(fastq_dir, f"*{plate}[-_]*R2*.fastq.gz"))
+    fastq_files = sorted(glob(os.path.join(fastq_dir, f"*{plate}[-_]*R2*.fastq.gz")))
     return fastq_files
 
 rule all:

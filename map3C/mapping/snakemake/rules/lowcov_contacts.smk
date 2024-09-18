@@ -4,14 +4,14 @@ rule pairtools_filterbycov:
         unpack(get_pairs_data)
     output:
         lowcov = (
-            "{id}_contacts.dedup.lowcov.pairs.gz"
+            "{id}_all.srt.dedup.lcov.pairs.gz"
             if last_contacts_step == "lowcov"
-            else temp("{id}_contacts.dedup.lowcov.pairs.gz")
+            else temp("{id}_all.srt.dedup.lcov.pairs.gz")
         ),
         highcov = (
-            "{id}_artefacts.dedup.highcov.pairs.gz"
-            if config["contacts"]["lowcov"]["keep_highcov"]
-            else temp("{id}_artefacts.dedup.highcov.pairs.gz")        
+            "{id}_artefacts.srt.dedup.hcov.pairs.gz"
+            if keep_highcov
+            else temp("{id}_artefacts.srt.dedup.hcov.pairs.gz")        
         ),
         stats = temp("{id}_filterbycov_stats.txt")
     params:
