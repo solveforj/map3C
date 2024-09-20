@@ -54,12 +54,12 @@ class Pair:
         
         self.flip = False
         
-        if "artefact" in ct:
-            self.pair_class = "artefact"
+        if "enzymeless" in ct:
+            self.pair_class = "enzymeless"
             if flip_pairs:
                 self._evaluate_flip(chrom_orders)
         elif "na" != ct:
-            self.pair_class = "contact"
+            self.pair_class = "enzyme"
             if flip_pairs:
                 self._evaluate_flip(chrom_orders)
         else:
@@ -254,9 +254,9 @@ class PairsGenerator:
                 idx3 = algn2["idx"]
                 cs_key = (idx5, idx3)
                 if cs_key not in R1_pairwise_cut_site_assign:
-                    ct = "artefact_chimera"
-                elif R1_pairwise_cut_site_assign[cs_key] == "artefact":
-                    ct = "artefact_chimera"
+                    ct = "enzymeless_chimera"
+                elif R1_pairwise_cut_site_assign[cs_key] == "enzymeless":
+                    ct = "enzymeless_chimera"
                     overlap = R1_pairwise_overlaps[cs_key]
                     cs_options = R1_pairwise_cut_site_options[cs_key]
                 else:
@@ -270,9 +270,9 @@ class PairsGenerator:
                 cs_key = (idx5, idx3)
                 
                 if cs_key not in R2_pairwise_cut_site_assign:
-                    ct = "artefact_chimera"
-                elif R2_pairwise_cut_site_assign[cs_key] == "artefact":
-                    ct = "artefact_chimera"
+                    ct = "enzymeless_chimera"
+                elif R2_pairwise_cut_site_assign[cs_key] == "enzymeless":
+                    ct = "enzymeless_chimera"
                     overlap = R2_pairwise_overlaps[cs_key]
                     cs_options = R2_pairwise_cut_site_options[cs_key]
                 else:
@@ -292,16 +292,16 @@ class PairsGenerator:
                 
                 _, bp_enzyme, _, _ = gap_pair_to_restriction_site(alignment1, alignment2, self.max_cut_site_whole_algn_dist)
                 
-                if bp_enzyme != "artefact":
+                if bp_enzyme != "enzymeless":
                     ct = "gap"
                 else:
-                    ct = "artefact_gap"
+                    ct = "enzymeless_gap"
 
         elif contact_reads == "R2_rescue":
             if (0, 1) not in R2_pairwise_cut_site_assign:
-                ct = "artefact_chimera"
-            elif R2_pairwise_cut_site_assign[(0, 1)] == "artefact":
-                ct = "artefact_chimera"
+                ct = "enzymeless_chimera"
+            elif R2_pairwise_cut_site_assign[(0, 1)] == "enzymeless":
+                ct = "enzymeless_chimera"
                 overlap = R2_pairwise_overlaps[(0, 1)]
                 cs_options = R2_pairwise_cut_site_options[(0, 1)]
             else:
@@ -310,9 +310,9 @@ class PairsGenerator:
                 cs_options = R2_pairwise_cut_site_options[(0, 1)]
         elif contact_reads == "R1_rescue":
             if (0, 1) not in R1_pairwise_cut_site_assign:
-                ct = "artefact_chimera"
-            elif R1_pairwise_cut_site_assign[(0, 1)] == "artefact":
-                ct = "artefact_chimera"
+                ct = "enzymeless_chimera"
+            elif R1_pairwise_cut_site_assign[(0, 1)] == "enzymeless":
+                ct = "enzymeless_chimera"
                 overlap = R1_pairwise_overlaps[(0, 1)]
                 cs_options = R1_pairwise_cut_site_options[(0, 1)]
             else:
@@ -333,14 +333,14 @@ class PairsGenerator:
 
             _, bp_enzyme, _, _ = gap_pair_to_restriction_site(alignment1, alignment2, self.max_cut_site_whole_algn_dist)
             
-            if bp_enzyme != "artefact":
+            if bp_enzyme != "enzymeless":
                 ct = "gap"
             else:
-                ct = "artefact_gap"
+                ct = "enzymeless_gap"
     
         return ct, overlap, cs_options
 
-    def contact_pair_is_intra_short(self, pair):
+    def enzyme_pair_is_intra_short(self, pair):
 
         algn1 = pair.algn1
         algn2 = pair.algn2
@@ -354,16 +354,16 @@ class PairsGenerator:
                 max_algn = algn1
     
             if max_algn["strand"] == min_algn["strand"]:
-                if (max_algn["pos"] - min_algn["pos"]) < self.min_same_strand_dist_contacts:
+                if (max_algn["pos"] - min_algn["pos"]) < self.min_same_strand_dist_enzyme:
                     pair.passed_filters = False
             elif min_algn["strand"] == "+":
-                if (max_algn["pos"] - min_algn["pos"]) < self.min_inward_dist_contacts:
+                if (max_algn["pos"] - min_algn["pos"]) < self.min_inward_dist_enzyme:
                     pair.passed_filters = False
             elif min_algn["strand"] == "-":
-                if (max_algn["pos"] - min_algn["pos"]) < self.min_outward_dist_contacts:
+                if (max_algn["pos"] - min_algn["pos"]) < self.min_outward_dist_enzyme:
                     pair.passed_filters = False
 
-    def artefact_pair_is_intra_short(self, pair):
+    def enzymeless_pair_is_intra_short(self, pair):
 
         algn1 = pair.algn1
         algn2 = pair.algn2
@@ -377,13 +377,13 @@ class PairsGenerator:
                 max_algn = algn1
     
             if max_algn["strand"] == min_algn["strand"]:
-                if (max_algn["pos"] - min_algn["pos"]) < self.min_same_strand_dist_artefacts:
+                if (max_algn["pos"] - min_algn["pos"]) < self.min_same_strand_dist_enzymeless:
                     pair.passed_filters = False
             elif min_algn["strand"] == "+":
-                if (max_algn["pos"] - min_algn["pos"]) < self.min_inward_dist_artefacts:
+                if (max_algn["pos"] - min_algn["pos"]) < self.min_inward_dist_enzymeless:
                     pair.passed_filters = False
             elif min_algn["strand"] == "-":
-                if (max_algn["pos"] - min_algn["pos"]) < self.min_outward_dist_artefacts:
+                if (max_algn["pos"] - min_algn["pos"]) < self.min_outward_dist_enzymeless:
                     pair.passed_filters = False
 
     
@@ -446,9 +446,9 @@ class PairsGenerator:
         if pair.passed_filters:
             self.contacts.write(str(pair))
 
-    def build_artefact_funcs(self):
+    def build_enzymeless_funcs(self):
         funcs = []
-        funcs.append(self.artefact_pair_is_intra_short)
+        funcs.append(self.enzymeless_pair_is_intra_short)
         
         if self.blacklist:
             funcs.append(self.blacklist_pair)
@@ -464,11 +464,11 @@ class PairsGenerator:
         funcs.append(self.contact_class_pair)
         funcs.append(self.write_contact)
         
-        self.artefact_funcs = funcs
+        self.enzymeless_funcs = funcs
 
-    def build_contact_funcs(self):
+    def build_enzyme_funcs(self):
         funcs = []
-        funcs.append(self.contact_pair_is_intra_short)
+        funcs.append(self.enzyme_pair_is_intra_short)
         
         if self.blacklist:
             funcs.append(self.blacklist_pair)
@@ -484,7 +484,7 @@ class PairsGenerator:
         funcs.append(self.contact_class_pair)
         funcs.append(self.write_contact)
         
-        self.contact_funcs = funcs
+        self.enzyme_funcs = funcs
             
 
     def write_pairs(self, c, readID, R1_readcut, R2_readcut, rule):
@@ -498,14 +498,14 @@ class PairsGenerator:
         if ct == "na":
             return
         pair = Pair(algn1, algn2, readID, ct, overlap, rule, cs_locs, pair_index, self.chrom_orders, self.flip_pairs)
-        if pair.pair_class == "artefact":
+        if pair.pair_class == "enzymeless":
                 
-            for filter in self.artefact_funcs:
+            for filter in self.enzymeless_funcs:
                 filter(pair)
 
-        elif pair.pair_class == "contact":
+        elif pair.pair_class == "enzyme":
 
-            for filter in self.contact_funcs:
+            for filter in self.enzyme_funcs:
                 filter(pair)
         
     def __init__(self, 
@@ -521,12 +521,12 @@ class PairsGenerator:
                  flip_pairs=False,
                  genome="",
                  chrom_regex=None,
-                 min_inward_dist_contacts=1000,
-                 min_outward_dist_contacts=1000,
-                 min_same_strand_dist_contacts=0,
-                 min_inward_dist_artefacts=1000,
-                 min_outward_dist_artefacts=1000,
-                 min_same_strand_dist_artefacts=0,
+                 min_inward_dist_enzyme=1000,
+                 min_outward_dist_enzyme=1000,
+                 min_same_strand_dist_enzyme=0,
+                 min_inward_dist_enzymeless=1000,
+                 min_outward_dist_enzymeless=1000,
+                 min_same_strand_dist_enzymeless=0,
                  max_cut_site_whole_algn_dist = 500
                 ):
         
@@ -546,13 +546,13 @@ class PairsGenerator:
         self.genome = genome
         self.chrom_regex = re.compile(chrom_regex) if chrom_regex else None
         
-        self.min_inward_dist_contacts = min_inward_dist_contacts
-        self.min_outward_dist_contacts = min_outward_dist_contacts
-        self.min_same_strand_dist_contacts = min_same_strand_dist_contacts
+        self.min_inward_dist_enzyme = min_inward_dist_enzyme
+        self.min_outward_dist_enzyme = min_outward_dist_enzyme
+        self.min_same_strand_dist_enzyme = min_same_strand_dist_enzyme
 
-        self.min_inward_dist_artefacts = min_inward_dist_artefacts
-        self.min_outward_dist_artefacts = min_outward_dist_artefacts
-        self.min_same_strand_dist_artefacts = min_same_strand_dist_artefacts
+        self.min_inward_dist_enzymeless = min_inward_dist_enzymeless
+        self.min_outward_dist_enzymeless = min_outward_dist_enzymeless
+        self.min_same_strand_dist_enzymeless = min_same_strand_dist_enzymeless
         
         self.max_cut_site_whole_algn_dist = max_cut_site_whole_algn_dist
 
@@ -560,8 +560,8 @@ class PairsGenerator:
                             "alignments_with_phase" : 0,
                             "alignments_without_phase": 0}
         
-        self.build_contact_funcs()
-        self.build_artefact_funcs()
+        self.build_enzyme_funcs()
+        self.build_enzymeless_funcs()
         
     def __enter__(self):
         self.contacts = BgzfWriter(self.contacts_path, 'wb')

@@ -5,7 +5,7 @@ if trim_output == "interleaved":
 
     rule align:
         input:
-            rules.reformat.output
+            get_trimmed_interleaved_fastq
         output:
             temp("{id}_alignments.bam")
         threads: 

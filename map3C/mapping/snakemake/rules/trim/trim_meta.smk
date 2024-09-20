@@ -1,33 +1,19 @@
 
-rule interleave:
+rule trim:
     input:
         unpack(get_fastq)
     output:
-        temp("{id}_interleaved.fastq.gz")
+        temp("{id}_trimmed.fastq.gz")
     threads:
-        1
+        10
     conda:
         "map3C_preprocess_meta"
-    shell:
-        """
-        seqtk mergepe {input.r1} {input.r2} | gzip > {output}
-        """
-
-rule trim:
-    input:
-        rules.interleave.output
-    output:
-        temp("{id}_trimmed.fastq.gz")
-    threads: 
-        2
     params:
         pre_meta=config["trim_methods"]["meta"]["pre-meta"],
         extra=config["trim_methods"]["meta"]["pre-meta_params"]
-    conda:
-        "map3C_preprocess_meta"
     shell:
         """
-        zcat {input} | {params.pre_meta} -t {threads} {params.extra} - | gzip > {output}
+        seqtk mergepe {input.r1} {input.r2} | {params.pre_meta} -t {threads} {params.extra} - | gzip > {output}
         """
 
 rule seqtk_stats:

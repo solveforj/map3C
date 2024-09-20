@@ -4,7 +4,21 @@ rule filter_pairs:
         unpack(get_pairs_data)
     output:
         pairs = pairs,
-        split_reads = split_reads
+        split_reads = (
+            split_reads 
+            if generate_sr and filter_done
+            else []
+        ),
+        enzyme = (
+            enzyme
+            if generate_enzyme and filter_done
+            else []
+        ),
+        enzymeless = (
+            enzymeless
+            if generate_enzymeless and filter_done
+            else []
+        )
     params:
         extra=config["contacts"]["filter"]["filter_params"],
         out_prefix=lambda wildcards: f"{wildcards.id}_{filter_suffix}"

@@ -367,7 +367,7 @@ def classify_breakpoint(r5_site_info, r3_site_info, max_cut_site_distance):
     # Assign enzyme to valid contacts
     # If there are multiple enzymes assigned to a valid contact, one will be chosen which will require the least trimming
     if len(total_trim) == 0:
-        contact_enzyme = "artefact"
+        contact_enzyme = "enzymeless"
     elif len(total_trim) == 1:
         contact_enzyme = list(total_trim.keys())[0]
     elif len(total_trim) > 1:
@@ -408,7 +408,7 @@ class CutAnalysis:
         if self.overlap > 0:
             self.first_trim += 1
         
-        if self.bp_enzyme != "artefact":
+        if self.bp_enzyme != "enzymeless":
             r5_closest = self.r5_rs[self.bp_enzyme]["site_pos"]
             r3_closest = self.r3_rs[self.bp_enzyme]["site_pos"]
             seg5 = adjust_read5_cut(self.pairs5, self.read5, r5_closest, self.seg5)
@@ -575,7 +575,7 @@ class CutAnalysis:
             if i+1 not in self.cut_site_tag_info:
                 self.cut_site_tag_info[i+1] = []
     
-            if bp_enzyme != "artefact":
+            if bp_enzyme != "enzymeless":
                 self.cut_site_tag_info[i].append("D")
                 self.cut_site_tag_info[i+1].append("U")
     
@@ -702,7 +702,7 @@ class CutAnalysisNoTrim(CutAnalysis):
             if i+1 not in self.cut_site_tag_info:
                 self.cut_site_tag_info[i+1] = []
     
-            if bp_enzyme != "artefact":
+            if bp_enzyme != "enzymeless":
                 self.cut_site_tag_info[i].append("D")
                 self.cut_site_tag_info[i+1].append("U")
     

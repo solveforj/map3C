@@ -3,7 +3,6 @@ from .utils import process_bed
 
 class PairsLine:
 
-    # readID chrom1 pos1 chrom2 pos2 strand1 strand2 pair_type rule reads contact_class multimap_overlap cut_site_locs
     def __init__(self, line, column_dict, minimal=True):
         line = line.strip().split()
         self.line = line
@@ -23,7 +22,7 @@ class PairsLine:
             self.cut_site_locs = line[column_dict["cut_site_locs"]]
 
         self.passed_filters = True
-        self.is_artefact = "artefact" in self.contact_class
+        self.is_enzymeless = "enzymeless" in self.contact_class
         self.is_chimera = "gap" not in self.contact_class
         
     def __str__(self):
@@ -35,25 +34,29 @@ class ContactFilter:
     def __init__(self, 
                  input_pairs, 
                  out_prefix, 
-                 split_reads=False,
-                 min_inward_dist_contacts=0,
-                 min_outward_dist_contacts=0,
-                 min_same_strand_dist_contacts=0,
-                 min_inward_dist_artefacts=0,
-                 min_outward_dist_artefacts=0,
-                 min_same_strand_dist_artefacts=0,
-                 remove_trans_artefacts=False):
+                 enzymeless_split_read_pairs=False,
+                 enzyme_pairs=False,
+                 enzymeless_pairs=False,
+                 min_inward_dist_enzyme=0,
+                 min_outward_dist_enzyme=0,
+                 min_same_strand_dist_enzyme=0,
+                 min_inward_dist_enzymeless=0,
+                 min_outward_dist_enzymeless=0,
+                 min_same_strand_dist_enzymeless=0,
+                 remove_trans_enzymeless=False):
 
         self.input_pairs = input_pairs
         self.output_pairs = f"{out_prefix}.flt.pairs.gz"
-        self.split_reads = f"{out_prefix}.split_reads.pairs.gz" if split_reads else None
-        self.min_inward_dist_contacts = min_inward_dist_contacts
-        self.min_outward_dist_contacts = min_outward_dist_contacts
-        self.min_same_strand_dist_contacts = min_same_strand_dist_contacts
-        self.min_inward_dist_artefacts = min_inward_dist_artefacts
-        self.min_outward_dist_artefacts = min_outward_dist_artefacts
-        self.min_same_strand_dist_artefacts = min_same_strand_dist_artefacts
-        self.remove_trans_artefacts = remove_trans_artefacts
+        self.split_reads = f"{out_prefix}.flt.enzymeless_split_reads.pairs.gz" if enzymeless_split_read_pairs else None
+        self.enzyme = f"{out_prefix}.flt.enzyme.pairs.gz" if enzyme_pairs else None
+        self.enzymeless = f"{out_prefix}.flt.enzymeless.pairs.gz" if enzymeless_pairs else None
+        self.min_inward_dist_enzyme = min_inward_dist_enzyme
+        self.min_outward_dist_enzyme = min_outward_dist_enzyme
+        self.min_same_strand_dist_enzyme = min_same_strand_dist_enzyme
+        self.min_inward_dist_enzymeless = min_inward_dist_enzymeless
+        self.min_outward_dist_enzymeless = min_outward_dist_enzymeless
+        self.min_same_strand_dist_enzymeless = min_same_strand_dist_enzymeless
+        self.remove_trans_enzymeless = remove_trans_enzymeless
         
         self.initialize()
 
@@ -98,16 +101,32 @@ class ContactFilter:
             for line in header:
                 self.sr_writer.write(line)
 
+        if self.enzyme:
+            self.enzyme_writer = BgzfWriter(self.enzyme, 'wb')
+            for line in header:
+                self.enzyme_writer.write(line)
+
+        if self.enzymeless:
+            self.enzymeless_writer = BgzfWriter(self.enzymeless, 'wb')
+            for line in header:
+                self.enzymeless_writer.write(line)
+
         funcs = []
         funcs.append(self.contact_pair_is_intra_short)
-        funcs.append(self.artefact_pair_is_intra_short)        
-        if self.remove_trans_artefacts:
-            funcs.append(self.is_trans_artefact)
+        funcs.append(self.enzymeless_pair_is_intra_short)        
+        if self.remove_trans_enzymeless:
+            funcs.append(self.is_trans_enzymeless)
         
         funcs.append(self.write_pair)
 
         if self.split_reads:
             funcs.append(self.write_sr)
+
+        if self.enzyme:
+            funcs.append(self.write_enzyme)
+
+        if self.enzymeless:
+            funcs.append(self.write_enzymeless)
             
         self.pair_funcs = funcs
 
@@ -129,10 +148,16 @@ class ContactFilter:
         
         if self.sr_writer:
             self.sr_writer.close()
+
+        if self.enzyme_writer:
+            self.enzyme_writer.close()
+
+        if self.enzymeless_writer:
+            self.enzymeless_writer.close()
             
     def contact_pair_is_intra_short(self, pair):
 
-        if not pair.is_artefact:
+        if not pair.is_enzymeless:
             if pair.chrom1 == pair.chrom2:
                 if pair.pos1 < pair.pos2:
                     min_pos = pair.pos1
@@ -146,18 +171,18 @@ class ContactFilter:
                     max_strand = pair.strand1
         
                 if max_strand == min_strand:
-                    if (max_pos - min_pos) < self.min_same_strand_dist_contacts:
+                    if (max_pos - min_pos) < self.min_same_strand_dist_enzyme:
                         pair.passed_filters = False
                 elif min_strand == "+":
-                    if (max_pos - min_pos) < self.min_inward_dist_contacts:
+                    if (max_pos - min_pos) < self.min_inward_dist_enzyme:
                         pair.passed_filters = False
                 elif min_strand == "-":
-                    if (max_pos - min_pos) < self.min_outward_dist_contacts:
+                    if (max_pos - min_pos) < self.min_outward_dist_enzyme:
                         pair.passed_filters = False
 
-    def artefact_pair_is_intra_short(self, pair):
+    def enzymeless_pair_is_intra_short(self, pair):
 
-        if pair.is_artefact:
+        if pair.is_enzymeless:
             if pair.chrom1 == pair.chrom2:
                 if pair.pos1 < pair.pos2:
                     min_pos = pair.pos1
@@ -171,18 +196,18 @@ class ContactFilter:
                     max_strand = pair.strand1
         
                 if max_strand == min_strand:
-                    if (max_pos - min_pos) < self.min_same_strand_dist_artefacts:
+                    if (max_pos - min_pos) < self.min_same_strand_dist_enzymeless:
                         pair.passed_filters = False
                 elif min_strand == "+":
-                    if (max_pos - min_pos) < self.min_inward_dist_artefacts:
+                    if (max_pos - min_pos) < self.min_inward_dist_enzymeless:
                         pair.passed_filters = False
                 elif min_strand == "-":
-                    if (max_pos - min_pos) < self.min_outward_dist_artefacts:
+                    if (max_pos - min_pos) < self.min_outward_dist_enzymeless:
                         pair.passed_filters = False
 
-    def is_trans_artefact(self, pair):
+    def is_trans_enzymeless(self, pair):
 
-        if pair.is_artefact:
+        if pair.is_enzymeless:
             if pair.chrom1 != pair.chrom2:
                     pair.passed_filters = False
     
@@ -193,6 +218,16 @@ class ContactFilter:
 
     def write_sr(self, pair):
 
-        if pair.is_artefact and pair.is_chimera:
+        if pair.is_enzymeless and pair.is_chimera and pair.passed_filters:
             self.sr_writer.write(str(pair))
+
+    def write_enzyme(self, pair):
+
+        if not pair.is_enzymeless and pair.passed_filters:
+            self.enzyme_writer.write(str(pair))
+
+    def write_enzymeless(self, pair):
+
+        if pair.is_enzymeless and pair.passed_filters:
+            self.enzymeless_writer.write(str(pair))
                  

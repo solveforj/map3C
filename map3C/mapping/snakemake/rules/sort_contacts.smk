@@ -4,9 +4,9 @@ rule sort_contacts:
         contacts = rules.generate_contacts.output.contacts
     output:
         contacts_sorted = (
-            "{id}_all.srt.pairs.gz"
+            "{id}_map3C.srt.pairs.gz"
             if last_contacts_step == "sort"
-            else temp("{id}_all.srt.pairs.gz")
+            else temp("{id}_map3C.srt.pairs.gz")
         )
     params:
         extra=config["contacts"]["sort"]["sort_params"],

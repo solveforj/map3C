@@ -4,9 +4,9 @@ rule dedup_contacts:
         contacts = rules.sort_contacts.output.contacts_sorted
     output:
         contacts_dedup = (
-            "{id}_all.srt.dedup.pairs.gz"
+            "{id}_map3C.srt.dedup.pairs.gz"
             if last_contacts_step == "dedup"
-            else temp("{id}_all.srt.dedup.pairs.gz")
+            else temp("{id}_map3C.srt.dedup.pairs.gz")
         ),
         stats = temp("{id}_contacts_dedup_stats.txt")
     params:

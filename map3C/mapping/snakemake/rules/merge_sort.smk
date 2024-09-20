@@ -10,7 +10,7 @@ rule merge:
         "map3C_utils"
     shell:
         """
-        samtools merge -@ {threads} -o {output} {input} {input}
+        samtools merge -@ {threads} -o {output} {input}
         """
 
 rule sort:

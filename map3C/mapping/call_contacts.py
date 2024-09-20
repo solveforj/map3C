@@ -510,12 +510,12 @@ class ContactGenerator:
                            self.flip_reads,
                            self.genome,
                            self.chrom_regex, 
-                           self.min_inward_dist_contacts,
-                           self.min_outward_dist_contacts,
-                           self.min_same_strand_dist_contacts,
-                           self.min_inward_dist_artefacts,
-                           self.min_outward_dist_artefacts,
-                           self.min_same_strand_dist_artefacts,
+                           self.min_inward_dist_enzyme,
+                           self.min_outward_dist_enzyme,
+                           self.min_same_strand_dist_enzyme,
+                           self.min_inward_dist_enzymeless,
+                           self.min_outward_dist_enzymeless,
+                           self.min_same_strand_dist_enzymeless,
                            self.max_cut_site_whole_algn_dist) as self.pairs_gen:
 
                 if not self.no_output_bam:
@@ -525,11 +525,8 @@ class ContactGenerator:
                 self.header = bam_in.header.to_dict()
                 self.bam_in = bam_in
                 
-
-                
-
                 for read in bam_in:
-                    read_id = read.query_name.split("_")[0]
+                    read_id = read.query_name.replace("/", " ").replace("_", " ").split()[0]
                     if iter_count == 0:
                         read_group_name = read_id
                         read_group = []
@@ -598,13 +595,13 @@ class ContactGenerator:
                  min_blacklist_overlap_ratio=0.5,
                  no_flip=False,
                  remove_all=False,
-                 min_inward_dist_contacts=1000,
-                 min_outward_dist_contacts=1000,
-                 min_same_strand_dist_contacts=0,
-                 min_inward_dist_artefacts=1000,
-                 min_outward_dist_artefacts=1000,
-                 min_same_strand_dist_artefacts=0,
-                 read_type="bisulfite",
+                 min_inward_dist_enzyme=1000,
+                 min_outward_dist_enzyme=1000,
+                 min_same_strand_dist_enzyme=0,
+                 min_inward_dist_enzymeless=1000,
+                 min_outward_dist_enzymeless=1000,
+                 min_same_strand_dist_enzymeless=0,
+                 read_type="bsdna",
                  manual_mate_annotation=False,
                  max_cut_site_split_algn_dist = 10,
                  max_cut_site_whole_algn_dist = 500,
@@ -615,13 +612,13 @@ class ContactGenerator:
         self.max_molecule_size = max_molecule_size
         self.max_inter_align_gap = max_inter_align_gap
 
-        self.min_inward_dist_contacts = min_inward_dist_contacts
-        self.min_outward_dist_contacts = min_outward_dist_contacts
-        self.min_same_strand_dist_contacts = min_same_strand_dist_contacts
+        self.min_inward_dist_enzyme = min_inward_dist_enzyme
+        self.min_outward_dist_enzyme = min_outward_dist_enzyme
+        self.min_same_strand_dist_enzyme = min_same_strand_dist_enzyme
 
-        self.min_inward_dist_artefacts = min_inward_dist_artefacts
-        self.min_outward_dist_artefacts = min_outward_dist_artefacts
-        self.min_same_strand_dist_artefacts = min_same_strand_dist_artefacts
+        self.min_inward_dist_enzymeless = min_inward_dist_enzymeless
+        self.min_outward_dist_enzymeless = min_outward_dist_enzymeless
+        self.min_same_strand_dist_enzymeless = min_same_strand_dist_enzymeless
 
         self.tag_funcs = []
         
@@ -640,7 +637,7 @@ class ContactGenerator:
         
         self.out_prefix = out_prefix
         self.bam = bam
-        self.bisulfite = read_type == "bisulfite"
+        self.bisulfite = read_type == "bsdna"
         self.divide_reads = divide_reads_manual_annotation if manual_mate_annotation else divide_reads_default
         self.max_cut_site_split_algn_dist = max_cut_site_split_algn_dist
         self.max_cut_site_whole_algn_dist = max_cut_site_whole_algn_dist
@@ -689,9 +686,9 @@ class ContactGenerator:
 
         self.remove_all=remove_all
         
-        self.contacts = f'{out_prefix}_all.pairs.gz'
+        self.contacts = f'{out_prefix}_map3C.pairs.gz'
         self.stats_path = f"{out_prefix}_alignment_stats.txt" 
-        self.trimmed_bam = f'{out_prefix}_trimmed.bam'
+        self.trimmed_bam = f'{out_prefix}_map3C.bam'
 
         self.process_bam()
         

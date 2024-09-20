@@ -8,14 +8,14 @@ rule generate_contacts:
         get_merged_bam
     output:
         bam = (
-            "{id}_trimmed.bam"
+            "{id}_map3C.bam"
             if bam_generated
             else []        
         ),
         contacts=(
-            "{id}_all.pairs.gz"
+            "{id}_map3C.pairs.gz"
             if last_contacts_step == "call"
-            else temp("{id}_all.pairs.gz")
+            else temp("{id}_map3C.pairs.gz")
         ),
         stats=temp("{id}_alignment_stats.txt")
     params:
@@ -24,7 +24,7 @@ rule generate_contacts:
         manual_mate_annotation=('--manual-mate-annotation ' 
                                 if trim_output == "separate" and not joint_alignments 
                                 else ''),
-        read_type="wgs" if mode == "dna" else "bisulfite"
+        read_type=mode
     conda:
         "map3C_tools"
     threads:
@@ -39,7 +39,7 @@ rule generate_contacts:
 
 
 def get_pairs_data(wildcards):
-   return {"contacts" : f"{wildcards.id}_all.pairs.gz"}
+   return {"contacts" : f"{wildcards.id}_map3C.pairs.gz"}
     
 def get_pairs_stats(wildcards):
    return {"contacts_stats": []}
@@ -52,7 +52,7 @@ if config["contacts"]["sort"]["sort_protocol"] == "default":
     include: "sort_contacts.smk"
 
     def get_pairs_data(wildcards):
-       return {"contacts" : f"{wildcards.id}_all.srt.pairs.gz"}
+       return {"contacts" : f"{wildcards.id}_map3C.srt.pairs.gz"}
 
 if config["contacts"]["dedup"]["dedup_protocol"] == "default":
 
@@ -67,7 +67,7 @@ if config["contacts"]["dedup"]["dedup_protocol"] == "default":
     include: "dedup_contacts.smk"
 
     def get_pairs_data(wildcards):
-       return {"contacts" : f"{wildcards.id}_all.srt.dedup.pairs.gz"}
+       return {"contacts" : f"{wildcards.id}_map3C.srt.dedup.pairs.gz"}
         
     def get_pairs_stats(wildcards):
        return {"contacts_stats": f"{wildcards.id}_contacts_dedup_stats.txt"}
@@ -89,7 +89,7 @@ if config["contacts"]["lowcov"]["lowcov_protocol"] == "default":
     include: "lowcov_contacts.smk"
     
     def get_pairs_data(wildcards):
-       return {"contacts" : f"{wildcards.id}_all.srt.dedup.lcov.pairs.gz"}
+       return {"contacts" : f"{wildcards.id}_map3C.srt.dedup.lcov.pairs.gz"}
         
     def get_filterbycov_stats(wildcards):
         return {"filterbycov_stats": f"{wildcards.id}_filterbycov_stats.txt"}
@@ -117,6 +117,6 @@ rule pairtools_stats:
     shell:
         "map3C pairtools-stats "
         "--out-prefix {params.out_prefix} "
-        "--contacts {input.contacts} "
-        "--contacts-dedup-stats {input.contacts_stats} "
-        "--filterbycov-stats {input.filterbycov_stats} "
+        "--input-pairs {input.contacts} "
+        "--pairs-dedup-stats {input.contacts_stats} "
+        "--pairs-filterbycov-stats {input.filterbycov_stats} "

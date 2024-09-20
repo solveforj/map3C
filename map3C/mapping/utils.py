@@ -94,8 +94,7 @@ def process_restriction_sites(restriction_sites, restriction_enzymes):
     restriction_sites_dict = {}
     restriction_sites = sum(restriction_sites, [])
     restriction_enzymes = sum(restriction_enzymes, [])
-    print(restriction_sites)
-    print(restriction_enzymes)
+
     for i in range(len(restriction_sites)):
         file = restriction_sites[i]
         enzyme = restriction_enzymes[i]
@@ -173,20 +172,20 @@ class PairsStats:
                         #multimap_overlap_idx = columns.index("multimap_overlap")
                         #cs_locs_idx = columns.index("cut_site_locs")
 
-                        self.types = ["contacts", "artefacts"]
+                        self.types = ["enzyme", "enzymeless"]
                         
                         for i in self.types:
                             self.pairs_stats.update({
-                                f"{i}_R1" : 0,
-                                f"{i}_R2" : 0,
-                                f"{i}_R1_rescue" : 0,
-                                f"{i}_R2_rescue" : 0,
-                                f"{i}_R1-2" : 0,
-                                f"{i}_R1&2" : 0,
-                                f"{i}_comb" : 0,
-                                f"{i}_UU_all" : 0,
-                                f"{i}_UU_mask" : 0,
-                                f"{i}_UR_mask" : 0
+                                f"pairs_{i}_R1" : 0,
+                                f"pairs_{i}_R2" : 0,
+                                f"pairs_{i}_R1_rescue" : 0,
+                                f"pairs_{i}_R2_rescue" : 0,
+                                f"pairs_{i}_R1-2" : 0,
+                                f"pairs_{i}_R1&2" : 0,
+                                f"pairs_{i}_comb" : 0,
+                                f"pairs_{i}_UU_all" : 0,
+                                f"pairs_{i}_UU_mask" : 0,
+                                f"pairs_{i}_UR_mask" : 0
                             })
                         
                         self.parsers.append(self.parse_metadata)
@@ -198,23 +197,23 @@ class PairsStats:
                         self.phase2_idx = columns.index("phase1")
                         for i in self.types:
                             self.pairs_stats.update({
-                                f"{i}_phased_.0" : 0,
-                                f"{i}_phased_.1" : 0,
-                                f"{i}_phased_.." : 0,
-                                f"{i}_phased_11" : 0,
-                                f"{i}_phased_00" : 0,
-                                f"{i}_phased_01" : 0,
+                                f"pairs_{i}_phased_.0" : 0,
+                                f"pairs_{i}_phased_.1" : 0,
+                                f"pairs_{i}_phased_.." : 0,
+                                f"pairs_{i}_phased_11" : 0,
+                                f"pairs_{i}_phased_00" : 0,
+                                f"pairs_{i}_phased_01" : 0,
                             })
                         
                         self.parsers.append(self.parse_phase)
 
                     for i in self.types:
                         self.pairs_stats.update({
-                            f"{i}_total" : 0,
-                            f"{i}_intra1kb" : 0,
-                            f"{i}_intra10kb" : 0,
-                            f"{i}_intra20kb" : 0,
-                            f"{i}_inter" : 0})
+                            f"pairs_{i}_total" : 0,
+                            f"pairs_{i}_intra1kb" : 0,
+                            f"pairs_{i}_intra10kb" : 0,
+                            f"pairs_{i}_intra20kb" : 0,
+                            f"pairs_{i}_inter" : 0})
                                     
                         
                 elif line.startswith("#"):
@@ -225,7 +224,7 @@ class PairsStats:
                     if len(self.types) == 1:
                         contact_type = self.types[0]
                     else:
-                        contact_type = "artefacts" if "artefact" in line[self.contact_class_idx] else "contacts"
+                        contact_type = "pairs_enzymeless" if "enzymeless" in line[self.contact_class_idx] else "pairs_enzyme"
 
                     for parser in self.parsers:
                         parser(line, contact_type)
@@ -257,18 +256,18 @@ class PairsStats:
 
 
 def pairtools_stats(out_prefix,
-                    contacts,
-                    contacts_dedup_stats=None,
-                    filterbycov_stats=None
+                    input_pairs,
+                    pairs_dedup_stats=None,
+                    pairs_filterbycov_stats=None
                    ):
 
     stats_path = f"{out_prefix}_pairs_stats.txt"
     
-    contacts_stats = PairsStats(contacts, contacts_dedup_stats).pairs_stats
+    contacts_stats = PairsStats(input_pairs, pairs_dedup_stats).pairs_stats
 
-    if filterbycov_stats:
-        if os.path.isfile(filterbycov_stats):
-            with open(filterbycov_stats) as f:
+    if pairs_filterbycov_stats:
+        if os.path.isfile(pairs_filterbycov_stats):
+            with open(pairs_filterbycov_stats) as f:
                 highcov = 0.0
                 for line in f:
                     if "pair_types/FF" in line:
