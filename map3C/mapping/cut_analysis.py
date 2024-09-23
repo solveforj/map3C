@@ -385,8 +385,8 @@ def classify_breakpoint(r5_site_info, r3_site_info, max_cut_site_distance):
 
 def split_pair_to_restriction_site(alignment5, alignment3, max_cut_site_distance):
 
-    r5_rs = alignment5.cut_site3
-    r3_rs = alignment3.cut_site5
+    r5_rs = alignment5.split_cut_site3
+    r3_rs = alignment3.split_cut_site5
 
     bp_class, bp_enzyme = classify_breakpoint(r5_rs, r3_rs, max_cut_site_distance)
 
@@ -394,8 +394,8 @@ def split_pair_to_restriction_site(alignment5, alignment3, max_cut_site_distance
 
 def gap_pair_to_restriction_site(alignment5, alignment3, max_cut_site_distance):
 
-    r5_rs = alignment5.cut_site3
-    r3_rs = alignment3.cut_site3
+    r5_rs = alignment5.gap_cut_site3
+    r3_rs = alignment3.gap_cut_site3
     
     bp_class, bp_enzyme = classify_breakpoint(r5_rs, r3_rs, max_cut_site_distance)
 

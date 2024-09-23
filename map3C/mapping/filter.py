@@ -71,6 +71,8 @@ class ContactFilter:
 
         self.pairs_writer = None
         self.sr_writer = None
+        self.enzyme_writer = None
+        self.enzymeless_writer = None
         
         for line in self.pairs_reader:
             if line[0] == "#":

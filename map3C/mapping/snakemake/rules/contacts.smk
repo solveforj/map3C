@@ -115,7 +115,7 @@ rule pairtools_stats:
     conda:
         "map3C_tools"
     shell:
-        "map3C pairtools-stats "
+        "map3C pair-stats "
         "--out-prefix {params.out_prefix} "
         "--input-pairs {input.contacts} "
         "--pairs-dedup-stats {input.contacts_stats} "

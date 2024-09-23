@@ -255,7 +255,7 @@ class PairsStats:
             self.parse_dedup_file()
 
 
-def pairtools_stats(out_prefix,
+def pair_stats(out_prefix,
                     input_pairs,
                     pairs_dedup_stats=None,
                     pairs_filterbycov_stats=None

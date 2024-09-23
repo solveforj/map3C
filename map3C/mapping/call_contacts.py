@@ -247,14 +247,13 @@ class Alignment:
             self.pos3 = read.reference_start
             nosplit_cs_direction = "upstream"
 
-        if self.has_split:
-            # Want the closest cut site to 5' and 3' end of read
-            self.cut_site3 = closest_restriction_site(self.chrom, self.pos3, restriction_sites, rule = "closest")
-            self.cut_site5 = closest_restriction_site(self.chrom, self.pos5, restriction_sites, rule = "closest")
-        else:
-            # Only care about cut site at 3' end of read
-            self.cut_site3 = closest_restriction_site(self.chrom, self.pos3, restriction_sites, rule=nosplit_cs_direction)
-            self.cut_site5 = None
+        # Want the closest cut site to 5' and 3' end of read
+        self.split_cut_site3 = closest_restriction_site(self.chrom, self.pos3, restriction_sites, rule = "closest")
+        self.split_cut_site5 = closest_restriction_site(self.chrom, self.pos5, restriction_sites, rule = "closest")
+        
+        # Only care about cut site at 3' end of read
+        self.gap_cut_site3 = closest_restriction_site(self.chrom, self.pos3, restriction_sites, rule=nosplit_cs_direction)
+        self.gap_cut_site5 = None
 
 class ContactGenerator:
     
@@ -363,14 +362,23 @@ class ContactGenerator:
             
         # Get original whole read sequence from primary alignment
         original_sequence = primary_alignment.get_forward_sequence()
+
+        primary_count = 0
         
         for read in all_alignments:
             if read.is_secondary:
                 if "S" in read.cigarstring:
                     read.flag = read.flag - 256
+            else:
+                primary_count += 1
             loc = get_loc(read, original_sequence)
             read_parts[loc] = Alignment(read, loc, self.restriction_sites)
-    
+
+        if primary_count > 1:
+            readcuts = self.cutanalysis(seg_keys = [])
+            self.multiple_primary_reads += 1
+            return readcuts
+            
         # Sort segments in order from 5' to 3' by starting position
         # Only choose segments with high MAPQ
         seg_keys = sorted([i for i in list(read_parts.keys()) if i[2] >= self.min_mapq], 
@@ -474,6 +482,7 @@ class ContactGenerator:
         self.illegal_overlap_reads = 0
         self.illegal_post_trim_count = 0
         self.at_least_two_alignments = 0
+        self.multiple_primary_reads = 0
         
         self.total_chimera_pairs = 0
         self.cut_site_chimera_pairs = 0
@@ -554,6 +563,7 @@ class ContactGenerator:
 
             "discarded_alignments_illegal_overlap" : self.illegal_overlap_alignments,
             "reads_with_illegal_overlap" : self.illegal_overlap_reads,
+            "discarded_reads_multiple_primary" : self.multiple_primary_reads,
             "discarded_alignments_post_trim" : self.illegal_post_trim_count,
             "read_pairs_with_multiple_valid_alignments" : self.at_least_two_alignments,
 

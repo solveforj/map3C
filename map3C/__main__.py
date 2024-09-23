@@ -53,7 +53,9 @@ def setup_logging(stdout=False, quiet=False, debug=False):
 def prepare_demultiplex_register_subparser(subparser):
     parser = subparser.add_parser('prepare-demultiplex',
                                   formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                  description="Setup demultiplexing")
+                                  description="Setup demultiplexing",
+                                  help=""
+                                 )
     
     parser_req = parser.add_argument_group("required arguments")
     
@@ -68,7 +70,8 @@ def prepare_demultiplex_register_subparser(subparser):
 def prepare_mapping_register_subparser(subparser):
     parser = subparser.add_parser('prepare-mapping',
                                   formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                  description="Setup mapping")
+                                  description="Setup mapping",
+                                  help="")
 
     # Required arguments
     parser_req = parser.add_argument_group("required arguments")
@@ -84,7 +87,8 @@ def prepare_mapping_register_subparser(subparser):
 def contamination_filter_register_subparser(subparser):
     parser = subparser.add_parser('contamination-filter',
                                   formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                  description="Select only reads that have low CH methylation and/or small numbers of CH sites")
+                                  description="Select only reads that have low CH methylation and/or small numbers of CH sites",
+                                  help="")
 
     # Required arguments
     parser_req = parser.add_argument_group("required arguments")
@@ -110,7 +114,8 @@ def contamination_filter_register_subparser(subparser):
 def call_contacts_register_subparser(subparser):
     parser = subparser.add_parser('call-contacts',
                                   formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                  description="Call contacts from BAM file and trim split alignments to remove within-mate multimapping")
+                                  description="Call contacts from BAM file and trim split alignments to remove within-mate multimapping",
+                                  help="")
 
     # Required arguments
     parser_req = parser.add_argument_group("required arguments")
@@ -254,7 +259,8 @@ def call_contacts_register_subparser(subparser):
 def mask_overlaps_register_subparser(subparser):
     parser = subparser.add_parser('mask-overlaps',
                                   formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                  description="Masks overlapping bases between mates of the same read pair")
+                                  description="Masks overlapping bases between mates of the same read pair",
+                                  help="")
 
     # Required arguments
     parser_req = parser.add_argument_group("required arguments")
@@ -278,7 +284,8 @@ def mask_overlaps_register_subparser(subparser):
 def bam_to_allc_register_subparser(subparser):
     parser = subparser.add_parser('bam-to-allc',
                                   formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                  description="Convert a biscuit-derived BAM file to ALLC format")
+                                  description="Convert a biscuit-derived BAM file to ALLC format",
+                                  help="")
 
     # Required arguments
     parser_req = parser.add_argument_group("required arguments")
@@ -315,12 +322,13 @@ def bam_to_allc_register_subparser(subparser):
     parser_opt.add_argument('--save-count-df', action="store_true",
                             help='If set, save context count summary file')
 
-def pairtools_stats_register_subparser(subparser):
-    parser = subparser.add_parser('pairtools-stats',
+def pair_stats_register_subparser(subparser):
+    parser = subparser.add_parser('pair-stats',
                                   formatter_class=argparse.ArgumentDefaultsHelpFormatter,
                                   description="""
                                         Compute stats for pairs files for contacts and non-ligation artefacts 
-                                        """
+                                        """,
+                                  help=""
                                  )
     # Required arguments
     parser_req = parser.add_argument_group("required arguments")
@@ -345,7 +353,8 @@ def aggregate_qc_stats_register_subparser(subparser):
                                   formatter_class=argparse.ArgumentDefaultsHelpFormatter,
                                   description="""
                                         Aggregate QC stats generated during trimming, filtering, mapping, and contact/methylation calling.
-                                        """
+                                        """,
+                                  help=""
                                  )
     # Required arguments
     parser_req = parser.add_argument_group("required arguments")
@@ -364,7 +373,8 @@ def restriction_sites_register_subparser(subparser):
                                   formatter_class=argparse.ArgumentDefaultsHelpFormatter,
                                   description="""
                                         Identify restriction enzyme cut sites for a reference genome.
-                                        """
+                                        """,
+                                  help=""
                                  )
     # Required arguments
     parser_req = parser.add_argument_group("required arguments")
@@ -385,7 +395,8 @@ def filter_pairs_register_subparser(subparser):
                                         Filter bgzipped pairs file based on various criteria. All filtered reads are added into an output 
                                         bgzipped pairs file. There are also options to additionally create even more bgzipped pairs files 
                                         that only contain certain groups of pairs. 
-                                        """
+                                        """,
+                                  help=""
                                  )
 
     # Required arguments
@@ -495,8 +506,8 @@ def main():
         from .mapping import ContaminationFilter as func
     elif cur_command in ['call-contacts']:
         from .mapping import ContactGenerator as func
-    elif cur_command in ['pairtools-stats']:
-        from .mapping import pairtools_stats as func
+    elif cur_command in ['pair-stats']:
+        from .mapping import pair_stats as func
     elif cur_command in ['mask-overlaps']:
         from .mapping import OverlapMask as func
     elif cur_command in ['bam-to-allc']:
