@@ -8,14 +8,12 @@ sort_done = config["contacts"]["sort"]["sort_protocol"] != "none"
 dedup_done = config["contacts"]["dedup"]["dedup_protocol"] != "none"
 lowcov_done = config["contacts"]["lowcov"]["lowcov_protocol"] != "none"
 call_done = config["contacts"]["call"]["call_protocol"] != "none"
-filter_done = config["contacts"]["filter"]["filter_protocol"] != "none"
-allc_done = config["read_analysis"]["allc"]["allc_protocol"]
+mask_done = config["read_analysis"]["mask"]["mask_protocol"] != "none"
+coord_sort_bam_done = config["read_analysis"]["coord_sort_bam"]["coord_sort_bam_protocol"] != "none"
+allc_done = config["read_analysis"]["allc"]["allc_protocol"] != "none"
 
 bam_generated = "--no-output-bam" not in config["contacts"]["call"]["call_params"]
 keep_highcov = config["contacts"]["lowcov"]["keep_highcov"]
-generate_sr = "--enzymeless-split-read-pairs" in config["contacts"]["filter"]["filter_params"]
-generate_enzyme = "--enzyme-pairs" in config["contacts"]["filter"]["filter_params"]
-generate_enzymeless = "--enzymeless-pairs" in config["contacts"]["filter"]["filter_params"]
 
 if call_done:
     last_contacts_step = "call"
@@ -32,13 +30,18 @@ if lowcov_done:
     highcov = "{id}_map3C.srt.dedup.hcov.pairs.gz"
 
 pairs = f"{{id}}_{filter_suffix}.pairs.gz"
-    
-if filter_done:
-    last_contacts_step = "filter"
-    split_reads = f"{{id}}_{filter_suffix}.flt.enzymeless_split_reads.pairs.gz"
-    enzyme = f"{{id}}_{filter_suffix}.flt.enzyme.pairs.gz"
-    enzymeless = f"{{id}}_{filter_suffix}.flt.enzymeless.pairs.gz"
-    pairs = f"{{id}}_{filter_suffix}.flt.pairs.gz"
+
+if call_done:
+    last_bam_step = "call"
+    bam_suffix = "map3C"
+if mask_done:
+    last_bam_step = "mask"
+    bam_suffix += "_masked"
+if coord_sort_bam_done:
+    last_bam_step = "sort"
+    bam_suffix += "_sorted"
+
+bam = f"{{id}}_{bam_suffix}.bam"
 
 if mode == "bsdna":
     
@@ -47,7 +50,7 @@ if mode == "bsdna":
             # QC stats
             expand("{id}_qc_stats.txt", id=run_info.index),
             # Alignments
-            (expand("{id}_map3C.bam", id=run_info.index)
+            (expand(bam, id=run_info.index)
              if bam_generated
              else []),
             # Methylation
@@ -62,18 +65,6 @@ if mode == "bsdna":
              else []),
             # Contacts
             expand(pairs, id=run_info.index),
-            # Split reads
-            (expand(split_reads, id=run_info.index)
-             if generate_sr and filter_done
-             else []),
-            # Enzyme
-            (expand(enzyme, id=run_info.index)
-             if generate_enzyme and filter_done
-             else []),
-            # Enzymeless
-            (expand(enzymeless, id=run_info.index)
-             if generate_enzymeless and filter_done
-             else []),
             # Highcov artefacts
             (expand(highcov, id=run_info.index)
              if keep_highcov and lowcov_done
@@ -86,23 +77,11 @@ if mode == "dna":
             # QC stats
             expand("{id}_qc_stats.txt", id=run_info.index),
             # Alignments
-            (expand("{id}_map3C.bam", id=run_info.index)
+            (expand(bam, id=run_info.index)
              if bam_generated
              else []),
             # Contacts
             expand(pairs, id=run_info.index),
-            # Split reads
-            (expand(split_reads, id=run_info.index)
-             if generate_sr and filter_done
-             else []),
-            # Enzyme
-            (expand(enzyme, id=run_info.index)
-             if generate_enzyme and filter_done
-             else []),
-            # Enzymeless
-            (expand(enzymeless, id=run_info.index)
-             if generate_enzymeless and filter_done
-             else []),
             # Highcov artefacts
             (expand(highcov, id=run_info.index)
              if keep_highcov and lowcov_done

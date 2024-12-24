@@ -4,4 +4,3 @@ from .call_contacts import *
 from .mask import *
 from .allc import *
 from .compute_restriction_sites import *
-from .filter import *

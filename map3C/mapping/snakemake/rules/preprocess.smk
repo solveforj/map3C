@@ -30,6 +30,10 @@ elif trim_protocol == "Dip-C_Nextera":
 
     include: "trim/trim_cutadapt_pe.smk"
 
+elif trim_protocol == "cutadapt_generic":
+
+    include: "trim/trim_cutadapt_pe.smk"
+
 elif trim_protocol == "none":
 
     trim_output = "separate"

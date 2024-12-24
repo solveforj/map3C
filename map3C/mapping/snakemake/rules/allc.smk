@@ -1,23 +1,4 @@
 
-if mask_protocol == "none":
-
-    rule coord_sort_trimmed:
-        input:
-            rules.generate_contacts.output.bam
-        output:
-            temp("{id}_trimmed_sorted.bam")
-        threads: 
-            10
-        conda:
-            "map3C_utils"
-        shell:
-            """
-            samtools sort -@ {threads} -o {output} {input}
-            """
-
-    def get_coordsorted_analysis_bam(wildcards):
-        return f"{wildcards.id}_trimmed_sorted.bam"
-
 rule bam_to_allc:
     input:
         get_coordsorted_analysis_bam

@@ -3,14 +3,17 @@
 if config["contacts"]["call"]["call_protocol"] != "default":
     raise Exception("Contact calling protocol must be specified for desired output.")
 
+
+generate_contacts_bam = "{id}_map3C.bam" if bam_generated else []
+
 rule generate_contacts:
     input:
         get_merged_bam
     output:
         bam = (
-            "{id}_map3C.bam"
-            if bam_generated
-            else []        
+            generate_contacts_bam
+            if last_bam_step == "call"
+            else temp(generate_contacts_bam)        
         ),
         contacts=(
             "{id}_map3C.pairs.gz"
@@ -21,10 +24,9 @@ rule generate_contacts:
     params:
         out_prefix=lambda wildcards: f"{wildcards.id}",
         extra=config["contacts"]["call"]["call_params"],
-        manual_mate_annotation=('--manual-mate-annotation ' 
+        mate_annotation=('--mate-annotation qname ' 
                                 if trim_output == "separate" and not joint_alignments 
-                                else ''),
-        read_type=mode
+                                else '--mate-annotation flag '),
     conda:
         "map3C_tools"
     threads:
@@ -33,10 +35,11 @@ rule generate_contacts:
         'map3C call-contacts '
         '--bam {input} '
         '--out-prefix {params.out_prefix} '
-        '--read-type {params.read_type} '
-        '{params.manual_mate_annotation} '
+        '{params.mate_annotation} '
         '{params.extra} '
 
+def get_namesorted_analysis_bam(wildcards):
+    return f"{wildcards.id}_map3C.bam"
 
 def get_pairs_data(wildcards):
    return {"contacts" : f"{wildcards.id}_map3C.pairs.gz"}
@@ -93,13 +96,6 @@ if config["contacts"]["lowcov"]["lowcov_protocol"] == "default":
         
     def get_filterbycov_stats(wildcards):
         return {"filterbycov_stats": f"{wildcards.id}_filterbycov_stats.txt"}
-
-if config["contacts"]["filter"]["filter_protocol"] == "default":
-
-    include: "filter_contacts.smk"
-    
-    def get_pairs_data(wildcards):
-       return {"contacts" : f"{wildcards.id}_{filter_suffix}.flt.pairs.gz"}
 
 rule pairtools_stats:
     input:

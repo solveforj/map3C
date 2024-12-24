@@ -167,13 +167,13 @@ class OverlapMask:
                         read_group = [read]
                 self.process_read_group(read_group, read_group_name, bam_out)
         
-    def __init__(self, bam, out_prefix, min_mapq=30, manual_mate_annotation=False):
+    def __init__(self, bam, out_prefix, mate_annotation, min_mapq=30):
 
         self.min_mapq = min_mapq
         self.trimmed_bam = bam
-        self.masked_bam = f'{out_prefix}_masked.bam'
-        
-        if manual_mate_annotation:
+        self.masked_bam = f'{out_prefix}_map3C_masked.bam'
+
+        if mate_annotation == "qname":
             self.get_read_id = lambda x: x.query_name.split("_")[0] 
             self.get_read_mate = lambda x: x.query_name.split("_")[1] 
         else:

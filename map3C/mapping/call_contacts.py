@@ -18,6 +18,8 @@ def divide_reads_default(read_group):
     r2_primary = None
 
     for read in read_group:
+        if not read.cigarstring:
+            continue
         if read.is_read1:
             if not read.is_secondary:
                 r1_primary = read
@@ -43,6 +45,8 @@ def divide_reads_manual_annotation(read_group):
     r2_primary = None
 
     for read in read_group:
+        if not read.cigarstring:
+            continue
         if read.query_name.split("_")[1] == "1":
             if not read.is_secondary:
                 r1_primary = read
@@ -359,7 +363,7 @@ class ContactGenerator:
             return readcuts
     
         read_parts = {}
-            
+
         # Get original whole read sequence from primary alignment
         original_sequence = primary_alignment.get_forward_sequence()
 
@@ -399,7 +403,7 @@ class ContactGenerator:
                                     read_parts,
                                     self.header,
                                     self.full_bam,
-                                    self.bisulfite,
+                                    self.aligner,
                                     self.max_cut_site_split_algn_dist,
                                     self.max_cut_site_whole_algn_dist
                                   )
@@ -414,16 +418,21 @@ class ContactGenerator:
             return
 
         r1, r1_primary, r2, r2_primary = self.divide_reads(read_group)
+        
         if r1_primary != None:
             r1_primary_unique = r1_primary.mapping_quality >= self.min_mapq
+
         if r2_primary != None:
             r2_primary_unique = r2_primary.mapping_quality >= self.min_mapq
+
         
         # Order reads from 5' to 3'
 
         R1_readcuts = self.process_mate(r1, r1_primary)
         R2_readcuts = self.process_mate(r2, r2_primary)
 
+        #print("Done")
+        
         # if read_group_name == "x":
         #     print("R1")
         #     for i in R1_readcuts.ordered_reads:
@@ -532,6 +541,18 @@ class ContactGenerator:
                     self.bam_out = bam_out
                     
                 self.header = bam_in.header.to_dict()
+                for i in self.header["PG"]:
+                    cl = i["CL"]
+                    if "bsbolt" in cl:
+                       self.aligner = "bsbolt"
+                       break
+                    if "biscuit" in cl:
+                        self.aligner = "biscuit"
+                        break
+                    else:
+                        self.aligner = "bwa mem"
+                print(self.aligner)
+                    
                 self.bam_in = bam_in
                 
                 for read in bam_in:
@@ -588,6 +609,7 @@ class ContactGenerator:
                  reference_name,
                  restriction_sites,
                  restriction_enzymes,
+                 mate_annotation,
                  keep_duplicates=False,
                  no_output_bam=False,
                  min_mapq=30, 
@@ -611,8 +633,6 @@ class ContactGenerator:
                  min_inward_dist_enzymeless=1000,
                  min_outward_dist_enzymeless=1000,
                  min_same_strand_dist_enzymeless=0,
-                 read_type="bsdna",
-                 manual_mate_annotation=False,
                  max_cut_site_split_algn_dist = 10,
                  max_cut_site_whole_algn_dist = 500,
                  pair_combinations=False
@@ -647,8 +667,14 @@ class ContactGenerator:
         
         self.out_prefix = out_prefix
         self.bam = bam
-        self.bisulfite = read_type == "bsdna"
-        self.divide_reads = divide_reads_manual_annotation if manual_mate_annotation else divide_reads_default
+
+        # Figure out aligner from SAM header
+
+        if mate_annotation == "qname":
+            self.divide_reads = divide_reads_manual_annotation
+        else:
+            self.divide_reads = divide_reads_default
+
         self.max_cut_site_split_algn_dist = max_cut_site_split_algn_dist
         self.max_cut_site_whole_algn_dist = max_cut_site_whole_algn_dist
 

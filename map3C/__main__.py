@@ -141,6 +141,11 @@ def call_contacts_register_subparser(subparser):
                                     spaces or specify this argument multiple times followed by one enzyme. Should be in same order
                                     as --restriction-sites argument.""")
 
+    parser_req.add_argument('--mate-annotation', type=str, default="tag", choices=["flag", "qname"], required=True,
+                            help="""If set to qname, the mate in read pairs is assumed to be added manually added as suffixes 
+                                    to read names (i.e. @qname_1 or @qname_2). If set to flag, the mate in read pairs is 
+                                    assumed to be encoded in the BAM flag.""")
+
     parser_opt = parser.add_argument_group("optional arguments")
     
     parser_opt.add_argument('--keep-duplicates', action="store_true",
@@ -197,14 +202,6 @@ def call_contacts_register_subparser(subparser):
                             help="""Minimum distance for intrachromosomal contacts with +/+ or -/- strandedness 
                                     (downstream read/upstream read).""")
 
-    parser_opt.add_argument('--read-type', type=str, default="bsdna", choices=['bsdna', 'dna'],
-                            help='Indicates that reads were bisulfite converted (bsdna) or not bisulfite converted (dna)')
-
-    parser_opt.add_argument('--manual-mate-annotation', action="store_true",
-                            help="""If set, input bam file is understood to have mates manually added as suffixes 
-                                    to read names (i.e. @readname_1 or @readname_2). This is done in the case of SE 
-                                    alignment to distinguish the mates.""")
-
     parser_opt.add_argument('--max-cut-site-split-algn-dist', type=int, default = 20,
                             help="""Max allowed distance (bp) from nearest cut site to split alignment to be considered ligation event""")
 
@@ -252,7 +249,7 @@ def call_contacts_register_subparser(subparser):
                                     create an upper triangular contact matrix.""")
 
     parser_opt.add_argument('--phase-bam', action="store_true",
-                            help="""If set, then all reported alignments will be phased.Otherwise, only alignments involved in pairs will be phased.
+                            help="""If set, then all reported alignments will be phased. Otherwise, only alignments involved in pairs will be phased.
                                     """)
 
 
@@ -271,15 +268,15 @@ def mask_overlaps_register_subparser(subparser):
     parser_req.add_argument('--out-prefix', type=str, default=None, required=True,
                             help='Path including name prefix for output bam file')
 
+    parser_req.add_argument('--mate-annotation', type=str, default="tag", choices=["flag", "qname"], required=True,
+                            help="""If set to qname, the mate in read pairs is assumed to be added manually added as suffixes 
+                                    to read names (i.e. @qname_1 or @qname_2). If set to flag, the mate in read pairs is 
+                                    assumed to be encoded in the BAM flag.""")
+
     parser_opt = parser.add_argument_group("optional arguments")
 
     parser_opt.add_argument('--min-mapq', type=int, default=30,
                             help='Minimum MAPQ to consider alignment')
-
-    parser_opt.add_argument('--manual-mate-annotation', action="store_true",
-                            help="""If set, input bam file is understood to have mates manually added as suffixes 
-                                    to read names (i.e. @readname_1 or @readname_2). This is done in the case of SE 
-                                    alignment to distinguish the mates.""")
 
 def bam_to_allc_register_subparser(subparser):
     parser = subparser.add_parser('bam-to-allc',
@@ -387,71 +384,6 @@ def restriction_sites_register_subparser(subparser):
 
     parser_req.add_argument('--output', type=str, default=None, required=True,
                         help='Full path to output file')
-
-def filter_pairs_register_subparser(subparser):
-    parser = subparser.add_parser('filter-pairs',
-                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                  description="""
-                                        Filter bgzipped pairs file based on various criteria. All filtered reads are added into an output 
-                                        bgzipped pairs file. There are also options to additionally create even more bgzipped pairs files 
-                                        that only contain certain groups of pairs. 
-                                        """,
-                                  help=""
-                                 )
-
-    # Required arguments
-    parser_req = parser.add_argument_group("required arguments")
-    
-    parser_req.add_argument('--input-pairs', type=str, required=True,
-                            help='Input bgzipped pairs file')
-
-    parser_req.add_argument('--out-prefix', type=str, required=True,
-                            help='Output bgzipped pairs file')
-                            
-    parser_subset = parser.add_argument_group("subsetting pairs (optional arguments)",
-                                            """These flags each subset the specified group of pairs to a separate file, given
-                                                that the pairs in the respective group pass all other filtering criteria in this function.""")
-
-    parser_subset.add_argument('--enzymeless-split-read-pairs', action="store_true",
-                            help="""Generate bgzipped pairs file that only reports pairs resulting from split reads not 
-                                    proximal to restriction site""")
-
-    parser_subset.add_argument('--enzymeless-pairs', action="store_true",
-                            help='Generate bgzipped pairs file that only reports pairs not proximal to restriction site')
-    
-    parser_subset.add_argument('--enzyme-pairs', action="store_true",
-                            help='Generate bgzipped pairs file that only reports pairs proximal to restriction site')
-
-    parser_filter = parser.add_argument_group("filtering pairs (optional arguments)",
-                                            """These parameters filter out specific pairs""")
-    
-    parser_filter.add_argument('--remove-trans-enzymeless', action="store_true",
-                            help='Remove trans artefacts')
-
-    parser_filter.add_argument('--min-inward-dist-enzyme', type=int, default=0,
-                            help="""Minimum distance for intrachromosomal contacts with +/- strandedness 
-                                    (downstream read/upstream read). Filters out WGS-like reads, such as those due 
-                                    to dangling ends.""")
-    
-    parser_filter.add_argument('--min-outward-dist-enzyme', type=int, default=0,
-                            help="""Minimum distance for intrachromosomal contacts with -/+ strandedness 
-                                    (downstream read/upstream read). Filters out self-ligations.""")
-
-    parser_filter.add_argument('--min-same-strand-dist-enzyme', type=int, default=0,
-                            help="""Minimum distance for intrachromosomal contacts with +/+ or -/- strandedness 
-                                    (downstream read/upstream read). Typically, no cutoff is needed for Hi-C/3C.""")
-
-    parser_filter.add_argument('--min-inward-dist-enzymeless', type=int, default=0,
-                            help="""Minimum distance for intrachromosomal artefacts with +/- strandedness 
-                                    (downstream read/upstream read).""")
-    
-    parser_filter.add_argument('--min-outward-dist-enzymeless', type=int, default=0,
-                            help="""Minimum distance for intrachromosomal artefacts with -/+ strandedness 
-                                    (downstream read/upstream read).""")
-
-    parser_filter.add_argument('--min-same-strand-dist-enzymeless', type=int, default=0,
-                            help="""Minimum distance for intrachromosomal contacts with +/+ or -/- strandedness 
-                                    (downstream read/upstream read).""")
     
 
 def main():

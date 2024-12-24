@@ -50,6 +50,27 @@ def get_bwa_tags(pairs):
 
     return NM
 
+def get_bsbolt_tags(pairs):
+    # For using bsbolt
+    xb_list = []
+    new_xb = ""
+    for pair in pairs:
+        if pair["cigar"] in [0, 1]:
+            xb_list.append(pair["xb"])
+    temp = 0
+    for i in xb_list:
+        if i == 1:
+            temp += 1
+        else:
+            if temp != 0:
+                new_xb += str(temp)
+            new_xb += i
+            temp = 0
+    if temp != 0:
+        new_xb += str(temp)
+
+    return new_xb
+
 def get_md_tag(pairs):
     MD = ""
     match_count = 0
@@ -88,6 +109,7 @@ def softclip_pairs(pairs):
                 "ref_nuc" : None,
                 "read_nuc" : None,
                 "read_qual" : None,
+                #"xb" : None
             }
             new_pairs.append(new_algn)
         elif pairs[i]["cigar"] in [2]:
@@ -105,12 +127,34 @@ def complement(nuc):
     nn = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N':'N'}
     return nn[nuc.upper()]
 
+def get_xb(xb):
+    # For using bsbolt
+    xb_list = []
+    curr_block = ""
+    for i in xb:
+        if i.isdigit():
+            curr_block += i
+        else:
+            if curr_block.isdigit():
+                xb_list += [1] * int(curr_block)
+            xb_list.append(i)
+            curr_block = ""
+    if curr_block.isdigit():
+        xb_list += [1] * int(curr_block)
+    
+    return xb_list
+
 def alignment_info(read, seg, original_sequence):
     pairs = read.get_aligned_pairs(with_seq = True)
     cigar = read.cigartuples
     read_seq = read.query_sequence
     read_qualities = pysam.qualities_to_qualitystring(read.query_qualities)
-    
+
+    # if read.has_tag("XB"):
+    #     xb = get_xb(read.get_tag("XB"))
+    # else:
+    #     xb = [""] * len(original_sequence)
+        
     if read.is_forward:
         read_start = seg[0]
         increment = 1
@@ -126,6 +170,7 @@ def alignment_info(read, seg, original_sequence):
     new_pairs = []
 
     seq_idx = 0
+    #xb_idx = 0
     for i in range(len(pairs)):
         pair = pairs[i]
         cigar_val = full_cigar[i]
@@ -135,6 +180,7 @@ def alignment_info(read, seg, original_sequence):
         read_nuc = None
         qual_val = None
         read_pos = None
+        #xb_val = None
         original_read_nuc = None
         
         if cigar_val in [0,1, 4]:
@@ -144,6 +190,8 @@ def alignment_info(read, seg, original_sequence):
                 read_pos = read_start 
                 #original_read_nuc = original_sequence[read_pos]
                 read_start += increment
+                #xb_val = xb[xb_idx]
+                #xb_idx += 1
             seq_idx += 1            
 
         pair_dict = {
@@ -153,7 +201,8 @@ def alignment_info(read, seg, original_sequence):
             "ref_pos": ref_pos,
             "ref_nuc": ref_nuc,
             "read_nuc" : read_nuc,
-            "read_qual" : qual_val
+            "read_qual" : qual_val,
+            #"xb" : xb_val
         }
         new_pairs.append(pair_dict)
 
@@ -477,7 +526,7 @@ class CutAnalysis:
         cigartuples = build_cigar(read, pairs, start_index, end_index)
         new_MD = get_md_tag(new_pairs)
 
-        if self.bisulfite:
+        if self.aligner == "biscuit":
                         
             direction = read.get_tag("YD")
             new_ZC, new_ZR, new_NM = get_biscuit_tags(new_pairs, direction)
@@ -488,12 +537,23 @@ class CutAnalysis:
                 "NM" : new_NM,
                 "MD" : new_MD
             }
+
+        elif self.aligner == "bsbolt":
+
+            old_XB = read.get_tag("XB")
+            new_XB = get_bsbolt_tags(new_pairs)
             
+            new_tags = {
+                "XB" : new_XB,
+                "MD" : new_MD
+            }
+
         else:
             new_NM = get_bwa_tags(new_pairs)
 
             new_tags = {
-                "NM" : new_NM
+                "NM" : new_NM,
+                "MD" : new_MD
             }
     
         tags = read.get_tags()
@@ -616,7 +676,7 @@ class CutAnalysis:
                  read_parts = {},
                  header = None,
                  full_bam = False,
-                 bisulfite=False,
+                 aligner="bwa mem",
                  max_cut_site_split_algn_dist=20,
                  max_cut_site_whole_algn_dist=500
                 ):
@@ -652,7 +712,7 @@ class CutAnalysis:
 
         self.adjust_split = self.adjust_split_complete
 
-        self.bisulfite = bisulfite
+        self.aligner = aligner
         self.max_cut_site_split_algn_dist = max_cut_site_split_algn_dist
         self.max_cut_site_whole_algn_dist = max_cut_site_whole_algn_dist
 
