@@ -310,20 +310,19 @@ class ContactGenerator:
         has_split = readcuts.has_split
 
         # Read is split, but primary alignment will not be included in processed mates
-        if has_split and not primary_unique:
-            self.bam_out.write(primary)
-
         if has_split:
             self.stats_dict[f"{mate}_split_aligned_mates"] += 1
+            if not primary_unique:
+                self.bam_out.write(primary)
         else:
             self.stats_dict[f"{mate}_whole_aligned_mates"] += 1
-
+                
         ordered_reads = readcuts.ordered_reads
         for i in ordered_reads:
             read = ordered_reads[i].trimmed_read
-                
+
             self.stats_dict[f"{mate}_total_alignments"] += 1
-            
+                        
             for func in self.tag_funcs:
                 func(read_data = ordered_reads[i], key=i, cs_tag_info=readcuts.cut_site_tag_info)
             
@@ -332,23 +331,31 @@ class ContactGenerator:
     def tag_and_write_ordered_reads_dedup(self, readcuts, primary, primary_unique, mate):
 
         has_split = readcuts.has_split
+
+        if has_split:
+            self.stats_dict[f"{mate}_split_aligned_mates"] += 1
+        else:
+            self.stats_dict[f"{mate}_whole_aligned_mates"] += 1
+            
         # Read is split, but primary alignment will not be included in processed mates
         if not primary.is_duplicate:
             if has_split:
-                self.stats_dict[f"{mate}_split_aligned_mates"] += 1
+                self.stats_dict[f"{mate}_split_aligned_mates_dedup"] += 1
                 if not primary_unique:
                     self.bam_out.write(primary)                
             else:
-                self.stats_dict[f"{mate}_whole_aligned_mates"] += 1
+                self.stats_dict[f"{mate}_whole_aligned_mates_dedup"] += 1
 
         ordered_reads = readcuts.ordered_reads
         for i in ordered_reads:
             read = ordered_reads[i].trimmed_read
 
+            self.stats_dict[f"{mate}_total_alignments"] += 1
+            
             if read.is_duplicate:
                 continue
                 
-            self.stats_dict[f"{mate}_total_alignments"] += 1
+            self.stats_dict[f"{mate}_total_alignments_dedup"] += 1
             
             for func in self.tag_funcs:
                 func(read_data = ordered_reads[i], key=i, cs_tag_info=readcuts.cut_site_tag_info)
@@ -508,6 +515,19 @@ class ContactGenerator:
             "R2_split_aligned_mates" : 0,
 
         }
+
+        if not self.keep_duplicates:
+            self.stats_dict.update({
+    
+                "R1_total_alignments_dedup" : 0,
+                "R1_whole_aligned_mates_dedup" : 0,
+                "R1_split_aligned_mates_dedup" : 0,
+                
+                "R2_total_alignments_dedup" : 0,
+                "R2_whole_aligned_mates_dedup" : 0,
+                "R2_split_aligned_mates_dedup" : 0,
+                
+            })
         
         iter_count = 0
         read_group_name = None
@@ -574,6 +594,7 @@ class ContactGenerator:
                 self.process_read_group(read_group, read_group_name)
 
                 self.phase_stats = self.pairs_gen.phase_stats
+                self.pair_stats = self.pairs_gen.pair_stats
 
                 if not self.no_output_bam:
                     bam_out.close()
@@ -595,10 +616,12 @@ class ContactGenerator:
 
         })
 
+        self.stats_dict.update(self.pair_stats)
+        
         if self.variants:
 
             self.stats_dict.update(self.phase_stats)
-            
+
         stats_df = pd.DataFrame.from_dict(self.stats_dict, orient="index").T
         stats_df.to_csv(self.stats_path, index=False, sep="\t")
 
@@ -678,7 +701,9 @@ class ContactGenerator:
         self.max_cut_site_split_algn_dist = max_cut_site_split_algn_dist
         self.max_cut_site_whole_algn_dist = max_cut_site_whole_algn_dist
 
-        if keep_duplicates:
+        self.keep_duplicates = keep_duplicates
+        
+        if self.keep_duplicates:
             self.tag_and_write_ordered_reads = self.tag_and_write_ordered_reads_dup
         else:
             self.tag_and_write_ordered_reads = self.tag_and_write_ordered_reads_dedup

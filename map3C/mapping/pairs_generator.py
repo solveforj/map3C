@@ -64,7 +64,13 @@ class Pair:
                 self._evaluate_flip(chrom_orders)
         else:
             self.pair_class = "na"
+
         
+        if self.chrom1 == self.chrom2:
+            self.chrom_type = "intra"
+        else:
+            self.chrom_type = "inter"
+            
     def is_all(self):
         if self._rule == "all":
             return True
@@ -498,16 +504,24 @@ class PairsGenerator:
         if ct == "na":
             return
         pair = Pair(algn1, algn2, readID, ct, overlap, rule, cs_locs, pair_index, self.chrom_orders, self.flip_pairs)
+
+        
         if pair.pair_class == "enzymeless":
-                
+            
+            self.pair_stats[f"potential_pairs_{pair.chrom_type}_enzymeless"] += 1
+            
             for filter in self.enzymeless_funcs:
                 filter(pair)
 
         elif pair.pair_class == "enzyme":
 
+            self.pair_stats[f"potential_pairs_{pair.chrom_type}_enzyme"] += 1
+
             for filter in self.enzyme_funcs:
                 filter(pair)
-        
+
+        # TODO: Add leg orient (cis or trans) stats
+    
     def __init__(self, 
                  contacts_path, 
                  chrom_sizes,
@@ -556,6 +570,11 @@ class PairsGenerator:
         
         self.max_cut_site_whole_algn_dist = max_cut_site_whole_algn_dist
 
+        self.pair_stats = {"potential_pairs_intra_enzymeless" : 0,
+                           "potential_pairs_intra_enzyme": 0,
+                           "potential_pairs_inter_enzymeless" : 0,
+                           "potential_pairs_inter_enzyme": 0}
+        
         self.phase_stats = {"alignments_with_conflicting_phase" : 0,
                             "alignments_with_phase" : 0,
                             "alignments_without_phase": 0}
