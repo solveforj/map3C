@@ -1,6 +1,7 @@
 import pysam
 import numpy as np
 from collections import OrderedDict
+from .utils import *
 
 rng = np.random.default_rng(1)
 
@@ -39,14 +40,6 @@ def mask_qualities(read, start, end):
     
     read.query_qualities = pysam.qualitystring_to_array(original_qualities)
     return read
-
-def get_mate_from_tag(read):
-    if read.is_read1:
-        return "1"
-    elif read.is_read2:
-        return "2"
-    else:
-        raise Exception(f"Mate not defined for read {read.query_name}")
 
 # Masked R1 and R2 as input
 def mask_overlaps(R1, R2):

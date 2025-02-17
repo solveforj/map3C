@@ -41,13 +41,20 @@ if mode == "bsdna":
                 stats=temp("{id}_contam_stats.txt")      
             params:
                 out_prefix=lambda wildcards: f"{wildcards.id}",
+                mate_annotation=('--mate-annotation qname ' 
+                                if trim_output == "separate" and not joint_alignments 
+                                else '--mate-annotation flag '),
                 extra = config["contamination"]["params"]
             conda:
                 "map3C_tools"
             threads:
                 1
             shell:
-                'map3C contamination-filter --bam {input.bam} --out-prefix {params.out_prefix} {params.extra}'
+                'map3C contamination-filter '
+                '{params.mate_annotation}  '
+                '--bam {input.bam} '
+                '--out-prefix {params.out_prefix} '
+                '{params.extra} '
     
     
         def get_merged_bam(wildcards):

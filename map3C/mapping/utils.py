@@ -11,6 +11,15 @@ from collections import OrderedDict
 
 rng = np.random.default_rng(1)
 
+def get_mate_from_tag(read):
+    if read.is_read1:
+        return "1"
+    elif read.is_read2:
+        return "2"
+    else:
+        raise Exception(f"Mate not defined for read {read.query_name}")
+
+
 def process_chrom_sizes(chrom_sizes_file):
     chrom_sizes = {}
 

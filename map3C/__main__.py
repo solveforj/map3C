@@ -87,7 +87,8 @@ def prepare_mapping_register_subparser(subparser):
 def contamination_filter_register_subparser(subparser):
     parser = subparser.add_parser('contamination-filter',
                                   formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                  description="Select only reads that have low CH methylation and/or small numbers of CH sites",
+                                  description="""Select only reads that have low CH methylation and/or small numbers of CH sites. 
+                                                  Only compatible with Biscuit alignments that have been processed with bsconv.""",
                                   help="")
 
     # Required arguments
@@ -98,6 +99,11 @@ def contamination_filter_register_subparser(subparser):
 
     parser_req.add_argument('--out-prefix', type=str, default=None, required=True,
                             help='Path including name prefix for output filtered bam')
+
+    parser_req.add_argument('--mate-annotation', type=str, default="flag", choices=["flag", "qname"], required=True,
+                            help="""If set to qname, the mate in read pairs is assumed to be added manually added as suffixes 
+                                    to read names (i.e. @qname_1 or @qname_2). If set to flag, the mate in read pairs is 
+                                    assumed to be encoded in the BAM flag.""")
 
     parser_opt = parser.add_argument_group("optional arguments")
 
@@ -141,7 +147,7 @@ def call_contacts_register_subparser(subparser):
                                     spaces or specify this argument multiple times followed by one enzyme. Should be in same order
                                     as --restriction-sites argument.""")
 
-    parser_req.add_argument('--mate-annotation', type=str, default="tag", choices=["flag", "qname"], required=True,
+    parser_req.add_argument('--mate-annotation', type=str, default="flag", choices=["flag", "qname"], required=True,
                             help="""If set to qname, the mate in read pairs is assumed to be added manually added as suffixes 
                                     to read names (i.e. @qname_1 or @qname_2). If set to flag, the mate in read pairs is 
                                     assumed to be encoded in the BAM flag.""")
