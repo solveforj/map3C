@@ -107,14 +107,34 @@ def contamination_filter_register_subparser(subparser):
 
     parser_opt = parser.add_argument_group("optional arguments")
 
+    parser_opt.add_argument('--filter-type', type=str, default="mate", choices=["mate", "pair"],
+                            help="""Methylation on CH sites can be evaluated at the mate level or the pair level. In the former case, mCH
+                                    levels are analyzed on individual reads and these reads are removed if they fail specified criteria. 
+                                    In the latter case, mCH levels are aggregated and analyzed across read pairs and the whole pair will be 
+                                    removed if it fails to meet specified crteria.""")
+
     parser_opt.add_argument('--min-mapq', type=int, default=30, 
-                            help="MAPQ threshold for considering a read's CH methylation")
+                            help="""MAPQ threshold for considering a read's CH methylation. Note that this tool does NOT filter out reads with 
+                                    a lower MAPQ than this threshold.""")
 
-    parser_opt.add_argument('--max-mc-ch', type=float, default=0.7,  
-                            help="Methylated fraction of CH sites threshold")
+    parser_opt.add_argument('--max-mch-fraction', type=float, default=0.7,  
+                            help="Maximum allowed fraction of methylated CH sites to keep read")
 
-    parser_opt.add_argument('--max-ch-sites', type=int, default=3,  
-                            help="CH sites threshold")
+    parser_opt.add_argument('--min-mch-fraction', type=float, default=0.0,  
+                            help="Minimum allowed fraction of methylated CH sites to keep read")
+
+    parser_opt.add_argument('--min-ch-sites', type=int, default=3,  
+                            help="""Minimum number of CH sites needed on a read, methylated or not. If --rescue-low-ch-sites is not set,
+                                    reads with too few CH sites will be discarded.""")
+
+    parser_opt.add_argument('--rescue-low-ch-sites', action="store_true",
+                            help="""If set, then reads with fewer CH sites than the --min-ch-sites parameter amount will be kept, regardless
+                                    of their fraction of methylated CH sites.""")
+
+    parser_opt.add_argument('--old-contam-filter', action="store_true",
+                            help="""If set, the original map3C contamination filter criteria (for snm3C-seq data) will be used. Procedure
+                                    discards all reads with same query name (i.e. primary/secondary alignments) >= 3 CH sites or > 0.7 of CH sites are methylated. 
+                                    Mate-level (as opposed to pair-level) filtering is applied.""")
                                 
 
 def call_contacts_register_subparser(subparser):
@@ -138,22 +158,25 @@ def call_contacts_register_subparser(subparser):
     parser_req.add_argument('--reference-name', type=str, default=None, required=True,
                             help='Name of reference genome (i.e. hg38 or mm10)')
 
-    parser_req.add_argument('--restriction-sites', type=str, action="append", nargs="+", default=[], required=True,
-                            help="""Paths to restriction sites files. For multiple files, either list sequentially separated by 
-                                    spaces or specify this argument multiple times followed by one file.""")
-
-    parser_req.add_argument('--restriction-enzymes', type=str, action="append", nargs="+", default=[], required=True,
-                            help="""Names of restriction enzymes. For multiple enzymes, either list sequentially separated by 
-                                    spaces or specify this argument multiple times followed by one enzyme. Should be in same order
-                                    as --restriction-sites argument.""")
-
     parser_req.add_argument('--mate-annotation', type=str, default="flag", choices=["flag", "qname"], required=True,
                             help="""If set to qname, the mate in read pairs is assumed to be added manually added as suffixes 
                                     to read names (i.e. @qname_1 or @qname_2). If set to flag, the mate in read pairs is 
                                     assumed to be encoded in the BAM flag.""")
 
     parser_opt = parser.add_argument_group("optional arguments")
-    
+
+
+    parser_opt.add_argument('--restriction-sites', type=str, action="append", nargs="+", default=[],
+                            help="""Paths to restriction sites files. For multiple files, either list sequentially separated by 
+                                    spaces or specify this argument multiple times followed by one file. If this argument is left 
+                                    empty, no restriction sites will be used.""")
+
+    parser_opt.add_argument('--restriction-enzymes', type=str, action="append", nargs="+", default=[],
+                            help="""Names of restriction enzymes. For multiple enzymes, either list sequentially separated by 
+                                    spaces or specify this argument multiple times followed by one enzyme. Should be in same order
+                                    as --restriction-sites argument. If this argument is left empty, no restriction sites will be 
+                                    used.""")
+
     parser_opt.add_argument('--keep-duplicates', action="store_true",
                         help='Keep reads marked as duplicates in output BAM file.')
 
@@ -368,7 +391,7 @@ def aggregate_qc_stats_register_subparser(subparser):
     parser_req.add_argument('--out-prefix', type=str, default=None, required=True,
                             help='Path including name prefix for output stats file')
 
-    parser_req.add_argument('--mode', type=str, default=None, choices=["bsdna", "dna"], required=True,
+    parser_req.add_argument('--mode', type=str, default=None, choices=["bsdna", "dna", "snmCTseq"], required=True,
                         help='Mode')
 
 def restriction_sites_register_subparser(subparser):

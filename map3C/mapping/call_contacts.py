@@ -222,6 +222,16 @@ def closest_restriction_site(chrom, pos, restriction_sites_dict, rule="closest")
 
 class Alignment:
 
+    def assign_restriction_sites(self, nosplit_cs_direction, restriction_sites):
+        
+        # Want the closest cut site to 5' and 3' end of read
+        self.split_cut_site3 = closest_restriction_site(self.chrom, self.pos3, restriction_sites, rule = "closest")
+        self.split_cut_site5 = closest_restriction_site(self.chrom, self.pos5, restriction_sites, rule = "closest")
+        
+        # Only care about cut site at 3' end of read
+        self.gap_cut_site3 = closest_restriction_site(self.chrom, self.pos3, restriction_sites, rule=nosplit_cs_direction)
+        self.gap_cut_site5 = None
+
     def __init__(self, read, span, restriction_sites):
 
         if read.mapping_quality == 0:
@@ -251,12 +261,19 @@ class Alignment:
             self.pos3 = read.reference_start
             nosplit_cs_direction = "upstream"
 
+        self.assign_restriction_sites(nosplit_cs_direction, restriction_sites)
+
+
+class AlignmentNoEnzyme(Alignment):
+
+    def assign_restriction_sites(self, nosplit_cs_direction, restriction_sites):
+        
         # Want the closest cut site to 5' and 3' end of read
-        self.split_cut_site3 = closest_restriction_site(self.chrom, self.pos3, restriction_sites, rule = "closest")
-        self.split_cut_site5 = closest_restriction_site(self.chrom, self.pos5, restriction_sites, rule = "closest")
+        self.split_cut_site3 = {}
+        self.split_cut_site5 = {}
         
         # Only care about cut site at 3' end of read
-        self.gap_cut_site3 = closest_restriction_site(self.chrom, self.pos3, restriction_sites, rule=nosplit_cs_direction)
+        self.gap_cut_site3 = {}
         self.gap_cut_site5 = None
 
 class ContactGenerator:
@@ -383,7 +400,7 @@ class ContactGenerator:
             else:
                 primary_count += 1
             loc = get_loc(read, original_sequence)
-            read_parts[loc] = Alignment(read, loc, self.restriction_sites)
+            read_parts[loc] = self.alignment(read, loc, self.restriction_sites)
 
         if primary_count > 1:
             readcuts = self.cutanalysis(seg_keys = [])
@@ -711,13 +728,19 @@ class ContactGenerator:
         self.no_output_bam = no_output_bam
         if no_output_bam:
             self.tag_and_write_ordered_reads = self.tag_and_write_ordered_reads_no_write
-            
-        self.restriction_sites = process_restriction_sites(restriction_sites, restriction_enzymes)
         
         self.chrom_sizes_file = chrom_sizes
         self.chrom_sizes = process_chrom_sizes(chrom_sizes)
         self.genome = reference_name
         self.chrom_orders = process_chrom_orders(chrom_sizes)
+
+        if len(restriction_sites) > 0 and len(restriction_enzymes) > 0:
+            self.restriction_sites = process_restriction_sites(restriction_sites, restriction_enzymes, self.chrom_sizes)
+            self.alignment = Alignment
+        else:
+            self.restriction_sites = {}
+            self.alignment = AlignmentNoEnzyme
+            
 
         self.variants = variants 
         self.phase_bam = phase_bam

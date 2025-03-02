@@ -138,7 +138,7 @@ class PrepareDemultiplex:
 
             raise Exception("FASTQ info must be defined")
 
-        if self.mode == "snm3Cseq":
+        if self.mode in ["snm3Cseq", "snmCTseq"]:
             
             self.prepare_plates_snm3Cseq()
 

@@ -17,7 +17,8 @@ def get_mate_from_tag(read):
     elif read.is_read2:
         return "2"
     else:
-        raise Exception(f"Mate not defined for read {read.query_name}")
+        return "1"
+        #raise Exception(f"Mate not defined for read {read.query_name}")
 
 
 def process_chrom_sizes(chrom_sizes_file):
@@ -98,12 +99,18 @@ def process_variants(snps):
     return snp_dict
             
     
-def process_restriction_sites(restriction_sites, restriction_enzymes):
+def process_restriction_sites(restriction_sites, restriction_enzymes, chrom_sizes):
 
     restriction_sites_dict = {}
     restriction_sites = sum(restriction_sites, [])
     restriction_enzymes = sum(restriction_enzymes, [])
 
+    if len(restriction_sites) != len(restriction_enzymes):
+        raise Exception("You didn't specify the same number of restriction enzyme names and site position files!")
+        
+    if len(restriction_sites) == 0:
+        return restriction_sites_dict
+            
     for i in range(len(restriction_sites)):
         file = restriction_sites[i]
         enzyme = restriction_enzymes[i]
@@ -343,6 +350,23 @@ def aggregate_qc_stats(job,
         txt_paths = [f"{out_prefix}_trim_stats.txt",
                      f"{out_prefix}_alignment_stats.txt",
                      f"{out_prefix}_pairs_stats.txt",
+                    ]
+
+    elif mode == "snmCTseq":
+
+        txt_paths = [f"{out_prefix}_trim_stats.txt",
+
+                     # DNA
+                     f"{out_prefix}_biscuit_mod_contam_stats.txt",
+                     f"{out_prefix}_biscuit_dupsifter_stats.txt",
+                     f"{out_prefix}_biscuit_alignment_stats.txt",
+                     f"{out_prefix}_methylation_stats.txt",
+
+                     # RNA
+                     f"{out_prefix}_STAR_contam_stats.txt",
+                     f"{out_prefix}_picard_rna_stats.txt",
+                     f"{out_prefix}_STAR_stats.txt",
+                     f"{out_prefix}_featureCount_stats.txt",
                     ]
     
     stat_dfs = [pd.DataFrame([job], columns=["job"])]

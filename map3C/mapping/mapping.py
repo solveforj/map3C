@@ -6,7 +6,7 @@ import shutil
 
 class PrepareMapping:
     
-    def prepare_ids(self):
+    def prepare_ids(self, mode):
         
         output_directory = self.config_dict["general"]["output_directory"]
         fastq_info = self.config_dict["general"]["fastq_info"]
@@ -16,7 +16,7 @@ class PrepareMapping:
         Path(results_directory).mkdir(parents=True, exist_ok=True)
 
         # Snakemake directory
-        snakemake_path = os.path.join(Path(__file__).parent.resolve(), "snakemake")
+        snakemake_path = os.path.join(Path(__file__).parent.resolve(), "snakemake", mode)
         snakemake_directory = os.path.join(output_directory, "snakemake_mapping")
         shutil.copytree(snakemake_path, snakemake_directory, dirs_exist_ok=True)
         
@@ -71,4 +71,8 @@ class PrepareMapping:
 
             raise Exception("FASTQ info must be defined")
 
-        self.prepare_ids()
+        if self.mode in ["bsdna", "dna", "snm3Cseq"]:
+            interpret_mode = "m3C"
+        elif self.mode in ["snmCTseq"]:
+            interpret_mode = "mCT"
+        self.prepare_ids(interpret_mode)

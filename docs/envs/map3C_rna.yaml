@@ -1,0 +1,9 @@
+name: map3C_rna
+channels:
+  - bioconda
+  - defaults
+dependencies:
+  - picard=2.27.4
+  - python=3.13.2
+  - star=2.7.10a
+  - subread=2.0.1

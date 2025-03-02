@@ -782,4 +782,4 @@ class CutAnalysisNoTrim(CutAnalysis):
         self.ordered_reads = ordered_reads
         
         return
-    
+        
