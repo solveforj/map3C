@@ -40,7 +40,7 @@ rule duplicates_stats:
                     dup_count += int(line.strip().split(": ")[-1])
                 line_count += 1
         with open(output["stats"], "w") as f:
-            f.write("duspifter_input_mapped_mates\tdupsifter_removed_duplicate_mates\n")
+            f.write("dupsifter_input_mapped_mates\tdupsifter_removed_duplicate_mates\n")
             f.write(f"{input_count}\t{dup_count}\n")
 
 def get_merged_bam(wildcards):
