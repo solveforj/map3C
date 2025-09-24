@@ -1,0 +1,2 @@
+plate1-B12 /path/to/fastq/iSeq_QC/
+plate2-A10 /path/to/fastq/iSeq_QC/

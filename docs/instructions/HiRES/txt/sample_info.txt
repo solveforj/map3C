@@ -1,0 +1,1 @@
+K562-GM12878	/path/to/fastqs/K562-GM12878/	/u/project/jflint/jgalasso/gageseq/fastq/K562-GM12878/

@@ -157,6 +157,7 @@ class ReadPhaserBisulfite(ReadPhaser):
                                 a1 += 1
                             elif qnt == v["a2"]:
                                 a2 += 1
+                            eval_snps += 1
                                 
                 x += length
                 y += length

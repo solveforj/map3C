@@ -1,0 +1,2 @@
+ValbB8w1074	/path/to/fastq/ValbB8w1074/ValbB8w1074_R1.fastq.gz	/path/to/fastq/ValbB8w1074/ValbB8w1074_R2.fastq.gz
+ValbB8w1072	/path/to/fastq/ValbB8w1072/ValbB8w1072_R1.fastq.gz	/path/to/fastq/ValbB8w1072/ValbB8w1072_R2.fastq.gz

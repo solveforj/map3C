@@ -7,7 +7,7 @@ class Pair:
     def __init__(self, algn1, 
                  algn2, readID,
                  ct, overlap, rule,
-                 cs_locs, pair_index,
+                 cs_locs, dists, pair_index,
                  chrom_orders, flip_pairs=False
                 ):
         
@@ -28,6 +28,8 @@ class Pair:
         self.phase1 = ""
         self.phase2 = ""
         self.rule = rule
+        self.dists1 = dists[0]
+        self.dists2 = dists[1]
         self.reads = pair_index[1]
         self.contact_class = ct
         self.multimap_overlap = str(overlap)
@@ -48,7 +50,9 @@ class Pair:
             "reads" : "",
             "contact_class" : "",
             "multimap_overlap" : "",
-            "cut_site_locs" : ""
+            "cut_site_locs" : "",
+            "cut_site_dist1" : "",
+            "cut_site_dist2" : "",
         }
 
         
@@ -111,6 +115,8 @@ class Pair:
             "reads" : f"\t{self.reads}",
             "multimap_overlap" : f"\t{self.multimap_overlap}",
             "cut_site_locs" : f"\t{self.cut_site_locs}",
+            "cut_site_dist1" : f"\t{self.dists1}",
+            "cut_site_dist2" : f"\t{self.dists2}",
         })
         
     def __str__(self):
@@ -131,7 +137,9 @@ class Pair:
                 f"{self._line['rule']}"
                 f"{self._line['reads']}"
                 f"{self._line['multimap_overlap']}"
-                f"{self._line['cut_site_locs']}\n"
+                f"{self._line['cut_site_locs']}"
+                f"{self._line['cut_site_dist2']}"
+                f"{self._line['cut_site_dist1']}\n"
             )
         else:
             line = (
@@ -149,7 +157,9 @@ class Pair:
                 f"{self._line['rule']}"
                 f"{self._line['reads']}"
                 f"{self._line['multimap_overlap']}"
-                f"{self._line['cut_site_locs']}\n"
+                f"{self._line['cut_site_locs']}"
+                f"{self._line['cut_site_dist1']}"
+                f"{self._line['cut_site_dist2']}\n"
             )
         return line
 
@@ -179,7 +189,7 @@ class PairsGenerator:
             base_columns += " phase0 phase1"
 
         if self.full_pairs:
-            base_columns += " rule reads multimap_overlap cut_site_locs"
+            base_columns += " rule reads multimap_overlap cut_site_locs cut_site_dist1 cut_site_dist2"
 
         base_columns += "\n"
         handle.write(base_columns)
@@ -240,16 +250,20 @@ class PairsGenerator:
     
         R1_pairwise_overlaps = R1_readcut.pairwise_overlaps
         R2_pairwise_overlaps = R2_readcut.pairwise_overlaps
+
+        R1_pairwise_cut_site_dists = R1_readcut.pairwise_cut_site_dists
+        R2_pairwise_cut_site_dists = R2_readcut.pairwise_cut_site_dists
         
         overlap = 0
         cs_options = ["na"]
+        dists = ("na", "na")
     
         if not algn1["is_mapped"] or not algn1["is_unique"]:
             ct = "na"
-            return ct, overlap, cs_options
+            return ct, overlap, cs_options, dists
         if not algn2["is_mapped"] or not algn2["is_unique"]:
             ct = "na"
-            return ct, overlap, cs_options
+            return ct, overlap, cs_options, dists
 
         contact_reads = pair_index[1]
 
@@ -265,10 +279,12 @@ class PairsGenerator:
                     ct = "enzymeless_chimera"
                     overlap = R1_pairwise_overlaps[cs_key]
                     cs_options = R1_pairwise_cut_site_options[cs_key]
+                    dists = R1_pairwise_cut_site_dists[cs_key]
                 else:
                     ct = R1_pairwise_cut_site_assign[cs_key]
                     overlap = R1_pairwise_overlaps[cs_key]
                     cs_options = R1_pairwise_cut_site_options[cs_key]
+                    dists = R1_pairwise_cut_site_dists[cs_key]
             # Pairtools reports 5' fragment before 3' fragment
             elif contact_reads == "R2": 
                 idx5 = algn1["idx"]
@@ -281,10 +297,12 @@ class PairsGenerator:
                     ct = "enzymeless_chimera"
                     overlap = R2_pairwise_overlaps[cs_key]
                     cs_options = R2_pairwise_cut_site_options[cs_key]
+                    dists = R2_pairwise_cut_site_dists[cs_key]
                 else:
                     ct = R2_pairwise_cut_site_assign[cs_key]
                     overlap = R2_pairwise_overlaps[cs_key]
                     cs_options = R2_pairwise_cut_site_options[cs_key]
+                    dists = R2_pairwise_cut_site_dists[cs_key]
             elif contact_reads in ["R1&2", "R1-2", "comb"]:
                 if algn1["mate"] == "R1":
                     alignment1 = R1_readcut.ordered_reads[algn1["idx"]]
@@ -297,6 +315,12 @@ class PairsGenerator:
                     alignment2 = R2_readcut.ordered_reads[algn2["idx"]]
                 
                 _, bp_enzyme, _, _ = gap_pair_to_restriction_site(alignment1, alignment2, self.max_cut_site_whole_algn_dist)
+
+                r5_rs = alignment1.gap_cut_site3
+                r3_rs = alignment2.gap_cut_site3
+                r5_dist = ",".join([f"{i}_{r5_rs[i]["dist"]}" for i in r5_rs])
+                r3_dist = ",".join([f"{i}_{r3_rs[i]["dist"]}" for i in r3_rs])
+                dists = (r5_dist, r3_dist)
                 
                 if bp_enzyme != "enzymeless":
                     ct = "gap"
@@ -310,10 +334,12 @@ class PairsGenerator:
                 ct = "enzymeless_chimera"
                 overlap = R2_pairwise_overlaps[(0, 1)]
                 cs_options = R2_pairwise_cut_site_options[(0, 1)]
+                dists = R2_pairwise_cut_site_dists[(0, 1)]
             else:
                 ct = R2_pairwise_cut_site_assign[(0, 1)]
                 overlap = R2_pairwise_overlaps[(0, 1)]
                 cs_options = R2_pairwise_cut_site_options[(0, 1)]
+                dists = R2_pairwise_cut_site_dists[(0, 1)]
         elif contact_reads == "R1_rescue":
             if (0, 1) not in R1_pairwise_cut_site_assign:
                 ct = "enzymeless_chimera"
@@ -321,10 +347,12 @@ class PairsGenerator:
                 ct = "enzymeless_chimera"
                 overlap = R1_pairwise_overlaps[(0, 1)]
                 cs_options = R1_pairwise_cut_site_options[(0, 1)]
+                dists = R1_pairwise_cut_site_dists[(0, 1)]
             else:
                 ct = R1_pairwise_cut_site_assign[(0, 1)]
                 overlap = R1_pairwise_overlaps[(0, 1)]
                 cs_options = R1_pairwise_cut_site_options[(0, 1)]
+                dists = R1_pairwise_cut_site_dists[(0, 1)]
     
         elif algn1["type"] == "U" and algn2["type"] == "U":
             if algn1["mate"] == "R1":
@@ -338,13 +366,19 @@ class PairsGenerator:
                 alignment2 = R2_readcut.ordered_reads[algn2["idx"]]
 
             _, bp_enzyme, _, _ = gap_pair_to_restriction_site(alignment1, alignment2, self.max_cut_site_whole_algn_dist)
-            
+
+            r5_rs = alignment1.gap_cut_site3
+            r3_rs = alignment2.gap_cut_site3
+            r5_dist = ",".join([f"{i}_{r5_rs[i]["dist"]}" for i in r5_rs])
+            r3_dist = ",".join([f"{i}_{r3_rs[i]["dist"]}" for i in r3_rs])
+            dists = (r5_dist, r3_dist)
+
             if bp_enzyme != "enzymeless":
                 ct = "gap"
             else:
                 ct = "enzymeless_gap"
-    
-        return ct, overlap, cs_options
+
+        return ct, overlap, cs_options, dists
 
     def enzyme_pair_is_intra_short(self, pair):
 
@@ -499,11 +533,11 @@ class PairsGenerator:
         algn2 = c[1]
         pair_index = c[2]
 
-        ct, overlap, cs_locs = self.classify_pair(algn1, algn2, pair_index, R1_readcut, R2_readcut, rule)
+        ct, overlap, cs_locs, dists = self.classify_pair(algn1, algn2, pair_index, R1_readcut, R2_readcut, rule)
 
         if ct == "na":
             return
-        pair = Pair(algn1, algn2, readID, ct, overlap, rule, cs_locs, pair_index, self.chrom_orders, self.flip_pairs)
+        pair = Pair(algn1, algn2, readID, ct, overlap, rule, cs_locs, dists, pair_index, self.chrom_orders, self.flip_pairs)
 
         
         if pair.pair_class == "enzymeless":

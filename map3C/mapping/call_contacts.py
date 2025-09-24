@@ -448,7 +448,6 @@ class ContactGenerator:
 
         if r2_primary != None:
             r2_primary_unique = r2_primary.mapping_quality >= self.min_mapq
-
         
         # Order reads from 5' to 3'
 
@@ -577,19 +576,6 @@ class ContactGenerator:
                     bam_out = pysam.AlignmentFile(self.trimmed_bam, 'wb', template=bam_in) 
                     self.bam_out = bam_out
                     
-                self.header = bam_in.header.to_dict()
-                for i in self.header["PG"]:
-                    cl = i["CL"]
-                    if "bsbolt" in cl:
-                       self.aligner = "bsbolt"
-                       break
-                    if "biscuit" in cl:
-                        self.aligner = "biscuit"
-                        break
-                    else:
-                        self.aligner = "bwa mem"
-                print(self.aligner)
-                    
                 self.bam_in = bam_in
                 
                 for read in bam_in:
@@ -642,6 +628,32 @@ class ContactGenerator:
         stats_df = pd.DataFrame.from_dict(self.stats_dict, orient="index").T
         stats_df.to_csv(self.stats_path, index=False, sep="\t")
 
+    def get_aligner(self):
+        # Stores header and finds aligner from input BAM file
+        
+        with pysam.AlignmentFile(self.bam, index_filename=None) as bam_in:
+            self.header = bam_in.header.to_dict()
+            for i in self.header["PG"]:
+                cl = i["CL"]
+                if "bsbolt" in cl:
+                   self.aligner = "bsbolt"
+                   break
+                if "biscuit" in cl:
+                    self.aligner = "biscuit"
+                    break
+                else:
+                    self.aligner = "bwa mem"
+                    
+            print(self.aligner)
+
+            if self.variants:
+                if self.aligner in ["biscuit", "bsbolt"]:
+                    self.read_phaser = ReadPhaserBisulfite(self.variants, self.min_base_quality)
+                else:
+                    self.read_phaser = ReadPhaser(self.variants, self.min_base_quality)
+            else:
+                self.read_phaser = None
+    
     def __init__(self, 
                  bam, 
                  out_prefix, 
@@ -746,14 +758,6 @@ class ContactGenerator:
         self.phase_bam = phase_bam
         if self.phase_bam:
             self.tag_funcs.append(self.add_phase_tags)
-        
-        if variants:
-            if self.bisulfite:
-                self.read_phaser = ReadPhaserBisulfite(variants, min_base_quality)
-            else:
-                self.read_phaser = ReadPhaser(variants, min_base_quality)
-        else:
-            self.read_phaser = None
 
         self.flip_reads = not no_flip
         
@@ -764,7 +768,8 @@ class ContactGenerator:
             self.blacklist=None
 
         self.comb = pair_combinations
-        
+
+        self.min_base_quality = min_base_quality
         self.min_blacklist_overlap_length = min_blacklist_overlap_length
         self.min_blacklist_overlap_ratio = min_blacklist_overlap_ratio
 
@@ -773,6 +778,8 @@ class ContactGenerator:
         self.contacts = f'{out_prefix}_map3C.pairs.gz'
         self.stats_path = f"{out_prefix}_alignment_stats.txt" 
         self.trimmed_bam = f'{out_prefix}_map3C.bam'
+
+        self.get_aligner()
 
         self.process_bam()
         

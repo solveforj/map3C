@@ -619,6 +619,11 @@ class CutAnalysis:
                                                                                self.max_cut_site_split_algn_dist)
 
             self.bp_enzyme = bp_enzyme
+
+            
+            r5_cs_dist = ",".join([f"{i}_{r5_rs[i]["dist"]}" for i in r5_rs])
+            r3_cs_dist = ",".join([f"{i}_{r3_rs[i]["dist"]}" for i in r3_rs])
+
             self.r5_rs = r5_rs
             self.r3_rs = r3_rs
             
@@ -629,7 +634,8 @@ class CutAnalysis:
             self.pairwise_cut_site_options[(i, i+1)] = bp_class
             self.pairwise_cut_site_assign[(i, i+1)] = bp_enzyme
             self.pairwise_overlaps[(i, i+1)] = original_overlap
-    
+            self.pairwise_cut_site_dists[(i, i+1)] = (r5_cs_dist, r3_cs_dist)
+            
             if i not in self.cut_site_tag_info:
                 self.cut_site_tag_info[i] = []
             if i+1 not in self.cut_site_tag_info:
@@ -691,6 +697,7 @@ class CutAnalysis:
         self.pairwise_cut_site_options = {}
         self.pairwise_overlaps = {}
         self.pairwise_cut_site_assign = {}
+        self.pairwise_cut_site_dists = {}
 
         self.ordered_reads = OrderedDict()
         

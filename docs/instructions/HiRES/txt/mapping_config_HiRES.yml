@@ -1,42 +1,15 @@
-# General parameters that are used by multiple steps of the pipeline
+# General parameters
 general:
 
-    # Either "bsdna" for bisulfite-converted DNA or "dna" for non-bisulfite-converted DNA
-    mode: "bsdna"
+    # Either bsdna for bisulfite-converted DNA or dna for non-bisulfite-converted DNA
+    mode: "dna"
 
-    # Use the following parameters if you are using undemultiplexed, raw snm3C-seq data; otherwise, leave them blank.
-    # -------------------------------------------------------------------------------------------------------------------
-    snm3Cseq_plate_input:
-    
-        # Full path to plate_info.txt file specifying plate name in first column and FASTQ directory in second column
-        plate_info: "/path/to/plate_info.txt"
-    
-        # Full path to barcodes FASTA file for demultiplexing.
-        barcodes: "/path/to/barcodes.fa"
-
-    # -------------------------------------------------------------------------------------------------------------------
-
-
-    # Use the following parameters if you are using non-single-cell data or previously-demultiplexed snm3C-seq data from 
-    # another pipeline.  Otherwise, leave them blank. This is the most common application of this pipeline.
-    general_input:
-        # Full path to fastq_info.txt specifying experiment name in the first column, R1 FASTQ path in second column, and
-        # R2 FASTQ path in the third column.
-        fastq_info: 
-        
-    # -------------------------------------------------------------------------------------------------------------------
-    
+    # Full path to fastq_info.txt specifying sample name (no underscores) in the first column, R1 FASTQ path in second 
+    # column, and R2 FASTQ path in the third column.
+    fastq_info: "/path/to/map3C_run/txt/fastq_info.txt"
 
     # Full path to where output data will be placed
-    output_directory: "/path/to/output/directory"
-
-    # Full path to reference genome. This genome should be indexed, with index files in the same folder. 
-    # For bsdna mode, use biscuit index <genome.fa>
-    # For dna mode, use bwa index <genome.fa>
-    reference_path: "/path/to/ref.fa"
-
-    # Full path to chromosome sizes file for reference genome. Name should have the format reference.chrom.sizes (i.e. hg38.chrom.sizes)
-    chrom_sizes: "/path/to/ref.chrom.sizes"
+    output_directory: "/path/to/map3C_run/mapping"
 
 preprocess:
 
@@ -45,7 +18,7 @@ preprocess:
     # * "none" - No trimming performed
     # * Specific protocol (i.e. "snm3Cseq") - See trim_methods section below for list of options
     # * Custom .smk path - Use your own protocol
-    trim_protocol: "snm3Cseq"
+    trim_protocol: "hires"
 
     # IMPORTANT: In order to improve the flexibility and readability of this YAML file, parameters for all trim
     # protocols are specified in the trim_methods section of this pipeline.
@@ -62,15 +35,18 @@ align:
     # FASTQ file may be provided by certain trimming protocols (i.e. META). In the case of separate R1 and R2 files,
     # these may be aligned separately (2 simultaneous alignment processes) or jointly. In the former case, the mate 
     # (1 or 2) will be added as a suffix to each read's name in the FASTQ file. In the latter case, BWA/biscuit will
-    # automatically incorporate mate  information into the SAM flags and tags.  If trimming creates interleaved reads,
+    # automatically incorporate mate information into the SAM flags and tags.  If trimming creates interleaved reads,
     # these will always be aligned jointly using smart pairing.
-    allow_joint_alignments: False
+    allow_joint_alignments: True
 
     # Extra parameters for aligners used to map reads. Biscuit is used in bsdna mode; BWA is used in dna mode.
     align_params:
 
         biscuit:
 
+            # Path to indexed reference genome
+            reference_path: "/path/to/hg38_chrL.fa"
+            
             # Threads for aligner
             threads: 15
 
@@ -88,6 +64,9 @@ align:
     
         bwa: 
 
+            # Path to indexed reference genome
+            reference_path: "/path/to/hg38.fa"
+            
             # Threads for aligner
             threads: 15
 
@@ -108,7 +87,7 @@ contamination:
     # Options:
     # * "default" - Run contamination filter (map3C contamination-filter) only if mode is bsdna. Otherwise, skip step.
     # * "none" - Do not run contamination filter
-    contamination_protocol: "default"
+    contamination_protocol: "none"
 
     # Custom parameters for map3C contamination-filter
     # Do not change --out-prefix or --bam
@@ -122,7 +101,7 @@ read_duplicates:
     # * "default" - Use default protocol (dupsifter) only if mode is bsdna. Otherwise, skip step.
     # * Custom .smk path - Use your own protocol
     # * "none" - Do not mark duplicates
-    duplicate_protocol: "default"
+    duplicate_protocol: "none"
 
     # Custom parameters for dupsifter
     # Do not add -s, -o, -O, or reference path, as these are added automatically as needed based on other parameters in this 
@@ -139,39 +118,33 @@ contacts:
         # * "default" - Default contact calling protocol
         call_protocol: "default"
     
-        # Custom parameters for map3C call-contacts. Do not add --read-type, --manual-mate-annotation, --out-prefix, --chrom-sizes, and
-        # --restriction-sites, as these are added automatically as needed based on other parameters in this YAML file.
-        # as needed. 
+        # Custom parameters for map3C call-contacts. Do not add --read-type, --mate-annotation, and --out-prefix
+        # as these are added automatically as needed based on other parameters in this YAML file.
         call_params: >-
+            --chrom-sizes /path/to/map3C_run/txt/hg38.chrom.sizes
+            --restriction-sites /path/to/map3C_run/txt/MboI.txt
+            --restriction-enzymes MboI
+            --reference-name hg38
+            --trim-reads
             --min-mapq 30 
             --max-molecule-size 750 
             --max-inter-align-gap 20 
             --trim-reporting full
-            --min-inward-dist 1000 
-            --min-outward-dist 1000
-            --min-same-strand-dist 0 
+            --pairs-reporting full
+            --min-inward-dist-enzyme 1000 
+            --min-outward-dist-enzyme 1000
+            --min-same-strand-dist-enzyme 1000 
+            --min-inward-dist-enzymeless 1000 
+            --min-outward-dist-enzymeless 1000
+            --min-same-strand-dist-enzymeless 1000 
             --max-cut-site-split-algn-dist 20
             --max-cut-site-whole-algn-dist 500
-            --chrom-regex "^(chr)?([0-9]+|[XY])$"
     
-        # List of restriction site files full paths that will be used for the --restriction-sites parameter of map3C call-contacts.
-        # These should be generated with Juicer (see https://github.com/aidenlab/juicer/blob/main/misc/generate_site_positions.py)
-        # Names should have the format reference_enzyme.txt (i.e. hg38_MboI.txt)
-        restriction_sites:
-            - "/path/to/ref_enzyme1.txt"
-            - "/path/to/ref_enzyme2.txt"
-
-        # Locations of phased SNPs; leave empty if not used
-        variants: 
-
-        # Blacklist for reference genome; leave empty if not used
-        blacklist: 
-
     sort:
         # Sort contacts and artefacts by applying pairtools sort to their pairs files
         # Options:
         # * "default" - Default sort protocol
-        # * "none* - Do not sort
+        # * "none" - Do not sort
         sort_protocol: "default"
         
         # Extra parameters for pairtools sort. 
@@ -198,6 +171,8 @@ contacts:
         # * "none" - Do not perform this step
         lowcov_protocol: "default"
 
+        keep_highcov: False
+
         # Extra parameters for pairtools filterbycov. Do not add --output, --output-highcov, and --output-stats, as these are added 
         # automatically as needed based on other parameters in this YAML file.
         filterbycov_params: "--max-cov 10 --max-dist 1000 --method max"
@@ -211,11 +186,16 @@ read_analysis:
         # Options:
         # * "default" - Default masking protocol
         # * "none" - Do not perform this step
-        mask_protocol: "default"
+        mask_protocol: "none"
 
         # Extra parameters for map3C mask-overlaps. Do not add --bam and --out-prefix, as these are added automatically as needed 
         # based on other parameters in this YAML file.
         mask_params: ""
+
+    coord_sort_bam:
+
+        # Coordinate-sort BAM (required for ALLC generation)
+        coord_sort_bam_protocol: "none"
 
     allc:
 
@@ -224,11 +204,11 @@ read_analysis:
         # Options:
         # * "default" - Default ALLC protocol
         # * "none" - Do not perform this step
-        allc_protocol: "default"
+        allc_protocol: "none"
 
-        # Extra parameters for map3C bam-to-allc. Do not add --bam-path, --reference-fasta, --output-path, and --save-count-df, as 
+        # Extra parameters for map3C bam-to-allc. Do not add --bam-path, --reference-fasta, --out-prefix, and --save-count-df, as 
         # these are added automatically as needed based on other parameters in this YAML file.
-        allc_params: ""
+        allc_params: "--control-chrom chrL"
 
 stats:
 
@@ -239,7 +219,7 @@ stats:
 
     # Extra parameters for map3C aggregate-qc-stats. Do not add --job, --out-prefix, and --mode, as these are added automatically 
     # as needed based on other parameters in this YAML file.
-    stats_params: "--min-mapq 30 --min-base-quality 20"
+    stats_params: ""
 
 
 trim_methods:
@@ -251,7 +231,7 @@ trim_methods:
 
     meta:
 
-        pre-meta: "/u/project/cluo/jgalasso/resources/tools/pre-pe/pre-pe/pre-meta"
+        pre-meta: "/path/to/pre-meta"
 
         pre-meta_params: ""
 
@@ -268,5 +248,12 @@ trim_methods:
             -U -10
             --pair-filter 'both'
             -O 6
-        
-        
+
+    GAGE-seq:
+
+        cutadapt_params: >-
+            -a AGATCGGAAGAGCACACGTCTGAAC 
+            -A CTGTCTCTTATACACATCT 
+            -u 12
+            -U 12
+            --pair-filter 'both'
