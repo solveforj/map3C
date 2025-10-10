@@ -7,6 +7,14 @@ Use conda/mamba to install the following environments:
 * [map3C_tools](../../envs/map3C_tools.yml)
 * [map3C_utils](../../envs/map3C_utils.yml)
 
+Run the following command to install map3C:
+
+```{bash}
+conda activate map3C_tools
+# Feel free to specify map3C version
+pip install map3C
+```
+
 # Preparation
 
 You will need to index your reference genomes and generate restriction enzyme site position files. 

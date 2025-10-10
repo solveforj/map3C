@@ -42,6 +42,14 @@ Install the following Conda environment
 
 * [map3C_tools](envs/map3C_tools.yml)
 
+Run the following command to install map3C
+
+```{bash}
+conda activate map3C_tools
+# Feel free to specify map3C version
+pip install map3C
+```
+
 Generate restriction enzyme cut site locations for restriction enzyme of interest (in this case, MboI)
 
 ```{bash}
