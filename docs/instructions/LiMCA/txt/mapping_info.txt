@@ -1,0 +1,2 @@
+K562_cell_052_HiC	/path/to/fastq/K562_cell_052_HiC/K562_cell_052_HiC_R1.fastq.gz	/path/to/fastq/K562_cell_052_HiC/K562_cell_052_HiC_R2.fastq.gz
+K562_cell_051_HiC	/path/to/fastq/K562_cell_051_HiC/K562_cell_051_HiC_R1.fastq.gz	/path/to/fastq/K562_cell_051_HiC/K562_cell_051_HiC_R2.fastq.gz

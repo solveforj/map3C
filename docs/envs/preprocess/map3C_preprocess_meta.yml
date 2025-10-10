@@ -4,4 +4,10 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+  - _libgcc_mutex=0.1
+  - _openmp_mutex=4.5
+  - libgcc-ng=14.1.0
+  - libgomp=14.1.0
+  - libzlib=1.2.13
   - seqtk=1.4
+  - zlib=1.2.13

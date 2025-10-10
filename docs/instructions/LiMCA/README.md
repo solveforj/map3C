@@ -2,7 +2,7 @@
 
 Use conda/mamba to install the following environments:
 
-* [map3C_preprocess_cutadapt](../../envs/preprocess/map3C_preprocess_hires.yml)
+* [map3C_preprocess_meta](../../envs/preprocess/map3C_preprocess_meta.yml)
 * [map3C_snakemake](../../envs/map3C_snakemake.yml)
 * [map3C_tools](../../envs/map3C_tools.yml)
 * [map3C_utils](../../envs/map3C_utils.yml)
@@ -30,10 +30,18 @@ For restriction enzyme site position files, you will need to run the following c
 
 ```{bash}
 conda activate map3C_tools
-map3C restriction-sites --cut-seqs GATC --reference /path/to/ref.fa --output /path/to/map3C_run/txt/MboI.txt
+map3C restriction-sites --cut-seqs CATG --reference /path/to/ref.fa --output /path/to/map3C_run/txt/NlaIII.txt
 ```
 
 Also, you will need to download the chromosome size files for your reference genome.
+
+You will need to install the pre-meta software by downloading and making the executable:
+
+```{bash}
+git clone https://github.com/lh3/pre-pe.git
+cd pre-pe
+make
+```
 
 # Running map3C (mapping)
 
@@ -46,13 +54,14 @@ Also, you will need to download the chromosome size files for your reference gen
 1. Update [`txt/mapping_info.txt`](txt/mapping_info.txt)
    * TSV where first column is well name (underscores are allowed), second column is the whole path to R1 FASTQ, and third column is the whole path to R2 FASTQ
    * Should have # file lines = # of cells
-2. Update [`txt/mapping_config_HiRES.yml`](txt/mapping_config_HiRES.yml)
+2. Update [`txt/mapping_config_LiMCA.yml`](txt/mapping_config_LiMCA.yml)
    * Don’t forget to specify the correct location of mapping_info.txt in the fastq_info entry
    * Don’t forget to specify your mapping directory (should be different from demultiplex directory)
    * Go to the align section and make sure proper reference genome paths are specified
-   * For HIRES, we use BWA MEM, so this is the only one you need to change
+   * For LiMCA, we use BWA MEM, so this is the only one you need to change
    * Go to the contacts section and make sure proper chrom sizes and cut site files are specified.
    * Note that the _contacts -> call -> call_params_ section cut site parameters need to be in a specific order. The “restriction-sites” parameter can be specified once for each enzyme used (with a cut site location file), but the “restriction-enzymes” parameter must have the same order and must be specified once for each enzyme used.
+   * Add the full path to the pre-meta executable to the _trim_methods -> meta -> pre-meta_ section
 3. Run [`scripts/A02a_prepare_mapping.sh`](`scripts/A02a_prepare_mapping.sh`)
    * Don’t forget to specify the correct location of [`txt/mapping_config_HiRES.yml`](txt/mapping_config_HiRES.yml)
    * This is fast

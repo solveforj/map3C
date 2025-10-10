@@ -1,0 +1,259 @@
+# General parameters
+general:
+
+    # Either bsdna for bisulfite-converted DNA or dna for non-bisulfite-converted DNA
+    mode: "dna"
+
+    # Full path to fastq_info.txt specifying sample name (no underscores) in the first column, R1 FASTQ path in second 
+    # column, and R2 FASTQ path in the third column.
+    fastq_info: "/path/to/map3C_run/txt/fastq_info.txt"
+
+    # Full path to where output data will be placed
+    output_directory: "/path/to/map3C_run/mapping"
+
+preprocess:
+
+    # Trim FASTQ reads
+    # Options:
+    # * "none" - No trimming performed
+    # * Specific protocol (i.e. "snm3Cseq") - See trim_methods section below for list of options
+    # * Custom .smk path - Use your own protocol
+    trim_protocol: "meta"
+
+    # IMPORTANT: In order to improve the flexibility and readability of this YAML file, parameters for all trim
+    # protocols are specified in the trim_methods section of this pipeline.
+    
+align:
+
+    # Align FASTQ reads using BWA (dna mode) or Biscuit (bsdna mode)
+    # Options:
+    # * "default" - Default alignment protocol (recommended)
+    # * Custom .smk path - Use your own protocol
+    align_protocol: "default"
+    
+    # The FASTQ files to be aligned can either be divided into separate R1 and R2 files, or a single, interleaved 
+    # FASTQ file may be provided by certain trimming protocols (i.e. META). In the case of separate R1 and R2 files,
+    # these may be aligned separately (2 simultaneous alignment processes) or jointly. In the former case, the mate 
+    # (1 or 2) will be added as a suffix to each read's name in the FASTQ file. In the latter case, BWA/biscuit will
+    # automatically incorporate mate information into the SAM flags and tags.  If trimming creates interleaved reads,
+    # these will always be aligned jointly using smart pairing.
+    allow_joint_alignments: True
+
+    # Extra parameters for aligners used to map reads. Biscuit is used in bsdna mode; BWA is used in dna mode.
+    align_params:
+
+        biscuit:
+
+            # Path to indexed reference genome
+            reference_path: "/path/to/hg38_chrL.fa"
+            
+            # Threads for aligner
+            threads: 15
+
+            # IMPORTANT: The parameters below should be carefully specified based on the protocol used for bisulfite conversion.
+            # See https://huishenlab.github.io/biscuit/docs/alignment#which-strand-to-map for more details.
+            
+            # Parameters for joint alignments of R1/R2 (i.e. biscuit align <index> <R1.fastq> <R2.fastq>)
+            joint_params: "-b 0"
+
+            # Parameters for separate alignments of R1 (i.e. biscuit align <index> <R1.fastq>)
+            separate_R1_params: "-b 3"
+
+            # Parameters for separate alignments of R2 (i.e. biscuit align <index> <R2.fastq>)
+            separate_R2_params: "-b 1"
+    
+        bwa: 
+
+            # Path to indexed reference genome
+            reference_path: "/path/to/hg38.fa"
+            
+            # Threads for aligner
+            threads: 15
+
+            # Parameters for joint alignments of R1/R2 (i.e. bwa mem <index> <R1.fastq> <R2.fastq>)
+            joint_params: ""
+
+            # Parameters for separate alignments of R1 (i.e. bwa mem <index> <R1.fastq>)
+            separate_R1_params: ""
+
+            # Parameters for separate alignments of R2 (i.e. bwa mem <index> <R2.fastq>)
+            separate_R2_params: ""
+    
+contamination:
+
+    # Filter out reads based on methylated CH content of read pairs. This is included to bring this pipeline up to standard 
+    # with the Chongyuan Luo lab's fork of TAURUS-MH for snm3C-seq mapping. 
+    # See here: https://github.com/luogenomics/Taurus-MH/blob/bf582c36c730fcb969520736a272ede76f3076a0/TAURUS-MH.py#L90
+    # Options:
+    # * "default" - Run contamination filter (map3C contamination-filter) only if mode is bsdna. Otherwise, skip step.
+    # * "none" - Do not run contamination filter
+    contamination_protocol: "none"
+
+    # Custom parameters for map3C contamination-filter
+    # Do not change --out-prefix or --bam
+    params: "" 
+    
+read_duplicates:
+
+    # Mark duplicates in BAM. Currently, only available for bsdna mode with dupsifter, as a precursor for downstream analysis 
+    # of reads that is independent of contact calling.
+    # Options:
+    # * "default" - Use default protocol (dupsifter) only if mode is bsdna. Otherwise, skip step.
+    # * Custom .smk path - Use your own protocol
+    # * "none" - Do not mark duplicates
+    duplicate_protocol: "none"
+
+    # Custom parameters for dupsifter
+    # Do not add -s, -o, -O, or reference path, as these are added automatically as needed based on other parameters in this 
+    # YAML file
+    dupsifter_params: ""
+
+contacts:
+
+    call:
+    
+        # Calling contacts from alignments (map3C call-contacts). It is assumed that users of this pipeline have a minimum end goal
+        # of calling contacts using map3C, so it is not possible to turn this step off at this point.
+        # Options:
+        # * "default" - Default contact calling protocol
+        call_protocol: "default"
+    
+        # Custom parameters for map3C call-contacts. Do not add --read-type, --mate-annotation, and --out-prefix
+        # as these are added automatically as needed based on other parameters in this YAML file.
+        call_params: >-
+            --chrom-sizes /path/to/map3C_run/txt/hg38.chrom.sizes
+            --restriction-sites /path/to/map3C_run/txt/NlaIII.txt
+            --restriction-enzymes NlaIII
+            --reference-name hg38
+            --trim-reads
+            --min-mapq 30 
+            --max-molecule-size 750 
+            --max-inter-align-gap 20 
+            --trim-reporting full
+            --pairs-reporting full
+            --min-inward-dist-enzyme 1000 
+            --min-outward-dist-enzyme 1000
+            --min-same-strand-dist-enzyme 1000 
+            --min-inward-dist-enzymeless 1000 
+            --min-outward-dist-enzymeless 1000
+            --min-same-strand-dist-enzymeless 1000 
+            --max-cut-site-split-algn-dist 20
+            --max-cut-site-whole-algn-dist 500
+    
+    sort:
+        # Sort contacts and artefacts by applying pairtools sort to their pairs files
+        # Options:
+        # * "default" - Default sort protocol
+        # * "none" - Do not sort
+        sort_protocol: "default"
+        
+        # Extra parameters for pairtools sort. 
+        # Do not add --nproc, as these are added automatically as needed based on other parameters in this YAML file
+        sort_params: ""
+        
+    dedup:
+        
+        # Dedup contacts and artefacts by applying pairtools dedup to sorted pairs files
+        # Options:
+        # * "default" - Default dedup protocol
+        # * "none" - Do not dedup
+        dedup_protocol: "default"
+
+        # Extra parameters for pairtools dedup. Do not add -p, --output, and --output-stats, as these are added automatically as needed based 
+        # on other parameters in this YAML file
+        dedup_params: "--max-mismatch 3"
+
+    lowcov:
+    
+        # Remove high coverage contacts from contacts (recommended for single cell) and move these to artefacts using pairtools filterbycov.
+        # Options:
+        # * "default" - Default lowcov protocol
+        # * "none" - Do not perform this step
+        lowcov_protocol: "default"
+
+        keep_highcov: False
+
+        # Extra parameters for pairtools filterbycov. Do not add --output, --output-highcov, and --output-stats, as these are added 
+        # automatically as needed based on other parameters in this YAML file.
+        filterbycov_params: "--max-cov 10 --max-dist 1000 --method max"
+
+read_analysis:
+
+    mask:
+
+        # Mask overlapping regions between aligned read mates (R1 and R2) by setting the base qualities of overlapping bp to 0 using 
+        # map3C mask-overlaps
+        # Options:
+        # * "default" - Default masking protocol
+        # * "none" - Do not perform this step
+        mask_protocol: "none"
+
+        # Extra parameters for map3C mask-overlaps. Do not add --bam and --out-prefix, as these are added automatically as needed 
+        # based on other parameters in this YAML file.
+        mask_params: ""
+
+    coord_sort_bam:
+
+        # Coordinate-sort BAM (required for ALLC generation)
+        coord_sort_bam_protocol: "none"
+
+    allc:
+
+        # Generate ALLC file for aligned reads with map3C bam-to-allc. It is recommended that masking be performed before this step. 
+        # See ALLCOOLs - https://github.com/lhqing/ALLCools
+        # Options:
+        # * "default" - Default ALLC protocol
+        # * "none" - Do not perform this step
+        allc_protocol: "none"
+
+        # Extra parameters for map3C bam-to-allc. Do not add --bam-path, --reference-fasta, --out-prefix, and --save-count-df, as 
+        # these are added automatically as needed based on other parameters in this YAML file.
+        allc_params: "--control-chrom chrL"
+
+stats:
+
+    # Aggregate stats generated by all prior steps of this pipeline using map3C aggregate-qc-stats. This step is required.
+    # Options:
+    # * "default" - Default stats protocol
+    stats_protocol: "default"
+
+    # Extra parameters for map3C aggregate-qc-stats. Do not add --job, --out-prefix, and --mode, as these are added automatically 
+    # as needed based on other parameters in this YAML file.
+    stats_params: ""
+
+
+trim_methods:
+
+    hires:
+
+        cutadapt_params: >- 
+            -G "XGGTTGAGGTAGTATTGCGCAATG;o=20"
+
+    meta:
+
+        pre-meta: "/path/to/pre-meta"
+
+        pre-meta_params: ""
+
+    snm3Cseq:
+
+        cutadapt_params: >-
+            -a AGATCGGAAGAGCACACGTCTGAAC 
+            -A AGATCGGAAGAGCGTCGTGTAGGGA 
+            -q 20 
+            -m 30
+            -u 18 
+            -u -10
+            -U 10
+            -U -10
+            --pair-filter 'both'
+            -O 6
+
+    GAGE-seq:
+
+        cutadapt_params: >-
+            -a AGATCGGAAGAGCACACGTCTGAAC 
+            -A CTGTCTCTTATACACATCT 
+            -u 12
+            -U 12
+            --pair-filter 'both'
