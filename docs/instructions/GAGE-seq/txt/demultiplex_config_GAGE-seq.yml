@@ -1,7 +1,7 @@
 # General parameters
 general:
 
-    demultiplex_protocol: "snm3Cseq"
+    demultiplex_protocol: "GAGE-seq"
     
     # Full path to fastq_info.txt, with experiment/plate name in first column and corresponding FASTQ directory in second column
     fastq_info: "/path/to/map3C_run/txt/plate_info.txt"
@@ -11,9 +11,16 @@ general:
 
 demultiplex_protocols:
 
-    snmCTseq:
-    
-        # Full path to barcodes FASTA file for demultiplexing.
-        barcodes: "/path/to/map3C_run/txt/random_index_v2.multiplex.fa"
+    GAGE-seq:
 
-        cutadapt_params: "-e 1"
+        BC1:
+
+            barcodes: "/path/to/map3C_run/txt/barcodes_BC1.fa"
+
+            cutadapt_params: "-e 1"
+
+        BC2:
+            
+            barcodes: "/path/to/map3C_run/txt/barcodes_BC2.fa"
+
+            cutadapt_params: "-e 1"

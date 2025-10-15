@@ -47,16 +47,14 @@ Also, you will need to download the chromosome size files for your reference gen
    * TSV where first column is well name (underscores are allowed), second column is the whole path to R1 FASTQ, and third column is the whole path to R2 FASTQ
    * Should have # file lines = # of cells
 2. Update [`txt/mapping_config_HiRES.yml`](txt/mapping_config_HiRES.yml)
-   * Don’t forget to specify the correct location of mapping_info.txt in the fastq_info entry
-   * Don’t forget to specify your mapping directory (should be different from demultiplex directory)
-   * Go to the align section and make sure proper reference genome paths are specified
-   * For HIRES, we use BWA MEM, so this is the only one you need to change
-   * Go to the contacts section and make sure proper chrom sizes and cut site files are specified.
-   * Note that the _contacts -> call -> call_params_ section cut site parameters need to be in a specific order. The “restriction-sites” parameter can be specified once for each enzyme used (with a cut site location file), but the “restriction-enzymes” parameter must have the same order and must be specified once for each enzyme used.
+   * Don’t forget to specify the correct location of mapping_info.txt in the _general -> fastq_info_ entry
+   * Don’t forget to specify your mapping directory (should be different from demultiplex directory) in the _general -> output_directory_ entry
+   * Go to the _align -> align_params -> bwa -> reference_path_ entry and make sure proper reference genome paths are specified
+   * Go to the _contacts -> call -> call_params_ entry and make sure proper chrom sizes and cut site files are specified.
 3. Run [`scripts/A02a_prepare_mapping.sh`](`scripts/A02a_prepare_mapping.sh`)
    * Don’t forget to specify the correct location of [`txt/mapping_config_HiRES.yml`](txt/mapping_config_HiRES.yml)
    * This is fast
 4. Run [`scripts/A02b_run_mapping.sh`](scripts/A02b_run_mapping.sh)
    * This should be submitted with qsub (for SGE, not sure command for other systems)
    * Make sure that path to mapping_scripts.txt is correct (depends on what you named your mapping directory)
-   * Don’t forget to make sure that you run a job array of the correct length - (384)x(# of plates)
+   * Don’t forget to make sure that you run a job array of the correct length, which is the number of cells

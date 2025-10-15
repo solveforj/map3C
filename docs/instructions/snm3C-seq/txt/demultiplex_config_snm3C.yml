@@ -11,20 +11,6 @@ general:
 
 demultiplex_protocols:
 
-    GAGE-seq:
-
-        BC1:
-
-            barcodes: ""
-
-            cutadapt_params: "-e 1"
-
-        BC2:
-            
-            barcodes: ""
-
-            cutadapt_params: "-e 1"
-
     snm3Cseq:
     
         # Full path to barcodes FASTA file for demultiplexing.

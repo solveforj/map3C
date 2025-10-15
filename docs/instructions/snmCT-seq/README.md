@@ -31,9 +31,9 @@ conda activate map3C_utils
 biscuit index /path/to/ref.fa
 STAR  --runMode genomeGenerate \
 --runThreadN 20 \
---genomeDir /path/to/output/index/ \
+--genomeDir /path/to/STAR \
 --genomeFastaFiles /path/to/ref.fa \
---sjdbGTFfile /path/to/gtf \
+--sjdbGTFfile /path/to/gencode.gtf \
  --sjdbOverhang 149 \
 --limitGenomeGenerateRAM 50000000000
 ```
@@ -58,9 +58,9 @@ Also, you will need to download the chromosome size files for your reference gen
 1. Update [`txt/plate_info.txt`](txt/plate_info.txt)
    * TSV where first column is plate sample name (no underscores allowed - Illumina convention) and second column is directory where FASTQ files for the plate are stored
 2. Update [`txt/demultiplex_config_snmCT.yml`](txt/demultiplex_config_snmCT.yml) with:
-   * The path to [`txt/plate_info.txt`](txt/plate_info.txt) goes in the fastq_info entry
-   * The path to demultiplex directory - this will include your demultiplexed FASTQ files and no mapping results - goes in the output_directory entry
-   * snmCTseq barcodes FASTA (the proper file is provided at [`txt/random_index_v2.multiplex.fa`](txt/random_index_v2.multiplex.fa))
+   * The path to [`txt/plate_info.txt`](txt/plate_info.txt) goes in the _general -> fastq_info_ entry
+   * The path to demultiplex directory - this will include your demultiplexed FASTQ files and no mapping results - goes in the _general -> output_directory_ entry
+   * snmCTseq barcodes FASTA (the proper file is provided at [`txt/random_index_v2.multiplex.fa`](txt/random_index_v2.multiplex.fa)) goes in the _demultiplex_protocols -> snmCTseq -> barcodes_ entry
 3. Run [`scripts/A01a_prepare_demultiplex.sh`](scripts/A01a_prepare_demultiplex.sh)
    * Make sure to update the path to [`txt/demultiplex_config.yml`](txt/demultiplex_config_snmCT.yml)
    * This is fast
@@ -75,12 +75,12 @@ Also, you will need to download the chromosome size files for your reference gen
    * TSV where first column is well name (underscores are allowed), second column is the whole path to R1 FASTQ, and third column is the whole path to R2 FASTQ
    * Should have (384)x(# of plates) lines
 2. Update [`txt/mapping_config_snmCT.yml`](txt/mapping_config_snmCT.yml)
-   * Don’t forget to specify the correct location of mapping_info.txt in the fastq_info entry
-   * Don’t forget to specify your mapping directory (should be different from demultiplex directory)
+   * Don’t forget to specify the correct location of mapping_info.txt in the _general -> fastq_info_ entry
+   * Don’t forget to specify your mapping directory (should be different from demultiplex directory) in the _general -> output_directory_ entry
    * Go to the _dna -> align -> biscuit -> reference_path_ section and make sure proper reference genome path is specified
    * Go to the _dna -> postprocess -> call_contacts_params_ section and make sure proper chrom sizes path is specified
    * Go to the _rna -> align -> star -> reference_path section_ and make sure proper reference genome path is specified
-   * Go to the _rna -> postprocess -> featurecounts_pe_params_ and featurecounts_pe_params sections and make sure proper GTF path is specified
+   * Go to the _rna -> postprocess -> featurecounts_pe_params_ and _rna -> postprocess -> featurecounts_se_params_ sections and make sure proper GTF path is specified
 3. Run [`scripts/A02a_prepare_mapping.sh`](scripts/A02a_prepare_mapping.sh)
    * Don’t forget to specify the correct location of [`txt/mapping_config_snmCT.yml`](txt/mapping_config_snmCT.yml)
    * This is fast

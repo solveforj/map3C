@@ -6,7 +6,7 @@ general:
 
     # Full path to fastq_info.txt specifying sample name (no underscores) in the first column, R1 FASTQ path in second 
     # column, and R2 FASTQ path in the third column.
-    fastq_info: "/path/to/map3C_run/txt/fastq_info.txt"
+    fastq_info: "/path/to/map3C_run/txt/mapping_info.txt"
 
     # Full path to where output data will be placed
     output_directory: "/path/to/map3C_run/mapping"
@@ -45,7 +45,7 @@ align:
         biscuit:
 
             # Path to indexed reference genome
-            reference_path: "/path/to/hg38_chrL.fa"
+            reference_path: ""
             
             # Threads for aligner
             threads: 15
@@ -65,7 +65,7 @@ align:
         bwa: 
 
             # Path to indexed reference genome
-            reference_path: "/path/to/hg38.fa"
+            reference_path: "/path/to/ref.fa"
             
             # Threads for aligner
             threads: 15
@@ -121,10 +121,10 @@ contacts:
         # Custom parameters for map3C call-contacts. Do not add --read-type, --mate-annotation, and --out-prefix
         # as these are added automatically as needed based on other parameters in this YAML file.
         call_params: >-
-            --chrom-sizes /path/to/map3C_run/txt/hg38.chrom.sizes
+            --chrom-sizes /path/to/map3C_run/txt/ref.chrom.sizes
             --restriction-sites /path/to/map3C_run/txt/NlaIII.txt
             --restriction-enzymes NlaIII
-            --reference-name hg38
+            --reference-name ref
             --trim-reads
             --min-mapq 30 
             --max-molecule-size 750 
@@ -224,36 +224,8 @@ stats:
 
 trim_methods:
 
-    hires:
-
-        cutadapt_params: >- 
-            -G "XGGTTGAGGTAGTATTGCGCAATG;o=20"
-
     meta:
 
         pre-meta: "/path/to/pre-meta"
 
         pre-meta_params: ""
-
-    snm3Cseq:
-
-        cutadapt_params: >-
-            -a AGATCGGAAGAGCACACGTCTGAAC 
-            -A AGATCGGAAGAGCGTCGTGTAGGGA 
-            -q 20 
-            -m 30
-            -u 18 
-            -u -10
-            -U 10
-            -U -10
-            --pair-filter 'both'
-            -O 6
-
-    GAGE-seq:
-
-        cutadapt_params: >-
-            -a AGATCGGAAGAGCACACGTCTGAAC 
-            -A CTGTCTCTTATACACATCT 
-            -u 12
-            -U 12
-            --pair-filter 'both'

@@ -59,9 +59,9 @@ Also, you will need to download the chromosome size files for your reference gen
 1. Update [`txt/plate_info.txt`](txt/plate_info.txt)
    * TSV where first column is plate sample name (no underscores allowed - Illumina convention) and second column is directory where FASTQ files for the plate are stored
 2. Update [`txt/demultiplex_config_snm3C.yml`](txt/demultiplex_config_snm3C.yml) with:
-   * The path to [`txt/plate_info.txt`](txt/plate_info.txt) goes in the fastq_info entry
-   * The path to demultiplex directory - this will include your demultiplexed FASTQ files and no mapping results - goes in the output_directory entry
-   * snm3Cseq barcodes FASTA (the proper file is provided at [`txt/random_index_v2.multiplex.fa`](txt/random_index_v2.multiplex.fa))
+   * The path to [`txt/plate_info.txt`](txt/plate_info.txt) goes in the _general -> fastq_info_ entry
+   * The path to demultiplex directory - this will include your demultiplexed FASTQ files and no mapping results - goes in the _general -> output_directory_ entry
+   * snm3Cseq barcodes FASTA (the proper file is provided at [`txt/random_index_v2.multiplex.fa`](txt/random_index_v2.multiplex.fa) goes in the _demultiplex_protocols -> snm3Cseq -> barcodes_ entry
 3. Run [`scripts/A01a_prepare_demultiplex.sh`](scripts/A01a_prepare_demultiplex.sh)
    * Make sure to update the path to [`txt/demultiplex_config.yml`](txt/demultiplex_config_snm3C.yml)
    * This is fast
@@ -76,11 +76,11 @@ Also, you will need to download the chromosome size files for your reference gen
    * TSV where first column is well name (underscores are allowed), second column is the whole path to R1 FASTQ, and third column is the whole path to R2 FASTQ
    * Should have (384)x(# of plates) lines
 2. Update [`txt/mapping_config_snm3C.yml`](txt/mapping_config_snm3C.yml)
-   * Don’t forget to specify the correct location of mapping_info.txt in the fastq_info entry
-   * Don’t forget to specify your mapping directory (should be different from demultiplex directory)
-   * Go to the align section and make sure proper reference genome paths are specified
-   * Go to the contacts section and make sure proper chrom sizes and cut site files are specified.
-   * Note that the _contacts -> call -> call_params_ section cut site parameters need to be in a specific order. The “restriction-sites” parameter can be specified once for each enzyme used (with a cut site location file), but the “restriction-enzymes” parameter must have the same order and must be specified once for each enzyme used.
+   * Don’t forget to specify the correct location of mapping_info.txt in the _general -> fastq_info_ entry
+   * Don’t forget to specify your mapping directory (should be different from demultiplex directory) in the _general -> output_directory_ entry
+   * Go to the _align -> align_params -> biscuit -> reference_path_ section and make sure proper reference genome paths are specified
+   * Go to the _contacts -> call -> call_params_ entry and make sure proper chrom sizes and cut site files are specified.
+   * Note that the _contacts -> call -> call_params_ entry cut site parameters need to be in a specific order. The “restriction-sites” parameter can be specified once for each enzyme used (with a cut site location file), but the “restriction-enzymes” parameter must have the same order and must be specified once for each enzyme used.
 3. Run [`scripts/A02a_prepare_mapping.sh`](scripts/A02a_prepare_mapping.sh)
    * Don’t forget to specify the correct location of [`txt/mapping_config_snm3C.yml`](txt/mapping_config_snm3C.yml)
    * This is fast

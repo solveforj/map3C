@@ -6,10 +6,10 @@ general:
 
     # Full path to fastq_info.txt specifying sample name (no underscores) in the first column, R1 FASTQ path in second 
     # column, and R2 FASTQ path in the third column.
-    fastq_info: "/u/project/cluo/jgalasso/snm3C_mapping_pipeline/test_snmCTseq/txt/mapping_info.txt"
+    fastq_info: "/path/to/map3C_run/txt/mapping_info.txt"
 
     # Full path to where output data will be placed
-    output_directory: "/u/project/cluo/jgalasso/snm3C_mapping_pipeline/test_snmCTseq/mapping"
+    output_directory: "/path/to/map3C_run/mapping"
 
 preprocess:
 
@@ -36,7 +36,7 @@ dna:
 
         biscuit:
         
-            reference_path: "/u/project/cluo/jgalasso/resources/references/hg38_chrL/biscuit/hg38_chrL.fa"
+            reference_path: "/path/to/ref.fa"
 
             biscuit_params: "-T 0 -b 0"
 
@@ -55,8 +55,8 @@ dna:
 
         # Don't specify mate annotation
         call_contacts_params: >-
-            --chrom-sizes /u/project/cluo/jgalasso/resources/references/hg38_chrL/hg38_chrL.chrom.natsort.sizes 
-            --reference-name hg38_chrL 
+            --chrom-sizes /path/to/map3C_run/txt/ref.chrom.sizes
+            --reference-name ref 
             --min-mapq 10 
             --trim-reads 
             --pairs-reporting full 
@@ -75,7 +75,7 @@ rna:
 
         star: 
 
-            reference_path: "/u/project/cluo/jgalasso/resources/references/hg38_chrL/STAR"
+            reference_path: "/path/to/STAR"
 
             star_params: >-
                 --alignEndsType EndToEnd 
@@ -117,9 +117,9 @@ rna:
 
         picard_params: ""
 
-        featurecounts_pe_params: "-p -a /u/project/cluo/jgalasso/resources/references/hg38_chrL/gencode/gencode.v40.primary_assembly.annotation.gtf"
+        featurecounts_pe_params: "-p -a /path/to/map3C_run/txt/gencode.gtf"
 
-        featurecounts_se_params: "-a /u/project/cluo/jgalasso/resources/references/hg38_chrL/gencode/gencode.v40.primary_assembly.annotation.gtf"
+        featurecounts_se_params: "-a /path/to/map3C_run/txt/gencode.gtf"
 
 
 stats:

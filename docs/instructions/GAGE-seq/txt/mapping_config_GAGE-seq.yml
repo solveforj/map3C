@@ -2,7 +2,7 @@
 general:
 
     # Either bsdna for bisulfite-converted DNA or dna for non-bisulfite-converted DNA
-    mode: "bsdna"
+    mode: "dna"
 
     # Full path to fastq_info.txt specifying sample name (no underscores) in the first column, R1 FASTQ path in second 
     # column, and R2 FASTQ path in the third column.
@@ -18,7 +18,7 @@ preprocess:
     # * "none" - No trimming performed
     # * Specific protocol (i.e. "snm3Cseq") - See trim_methods section below for list of options
     # * Custom .smk path - Use your own protocol
-    trim_protocol: "snm3Cseq"
+    trim_protocol: "GAGE-seq"
 
     # IMPORTANT: In order to improve the flexibility and readability of this YAML file, parameters for all trim
     # protocols are specified in the trim_methods section of this pipeline.
@@ -35,9 +35,9 @@ align:
     # FASTQ file may be provided by certain trimming protocols (i.e. META). In the case of separate R1 and R2 files,
     # these may be aligned separately (2 simultaneous alignment processes) or jointly. In the former case, the mate 
     # (1 or 2) will be added as a suffix to each read's name in the FASTQ file. In the latter case, BWA/biscuit will
-    # automatically incorporate mate  information into the SAM flags and tags.  If trimming creates interleaved reads,
+    # automatically incorporate mate information into the SAM flags and tags.  If trimming creates interleaved reads,
     # these will always be aligned jointly using smart pairing.
-    allow_joint_alignments: False
+    allow_joint_alignments: True
 
     # Extra parameters for aligners used to map reads. Biscuit is used in bsdna mode; BWA is used in dna mode.
     align_params:
@@ -45,7 +45,7 @@ align:
         biscuit:
 
             # Path to indexed reference genome
-            reference_path: "/path/to/ref.fa"
+            reference_path: ""
             
             # Threads for aligner
             threads: 15
@@ -65,7 +65,7 @@ align:
         bwa: 
 
             # Path to indexed reference genome
-            reference_path: ""
+            reference_path: "/path/to/ref.fa"
             
             # Threads for aligner
             threads: 15
@@ -87,7 +87,7 @@ contamination:
     # Options:
     # * "default" - Run contamination filter (map3C contamination-filter) only if mode is bsdna. Otherwise, skip step.
     # * "none" - Do not run contamination filter
-    contamination_protocol: "default"
+    contamination_protocol: "none"
 
     # Custom parameters for map3C contamination-filter
     # Do not change --out-prefix or --bam
@@ -101,7 +101,7 @@ read_duplicates:
     # * "default" - Use default protocol (dupsifter) only if mode is bsdna. Otherwise, skip step.
     # * Custom .smk path - Use your own protocol
     # * "none" - Do not mark duplicates
-    duplicate_protocol: "default"
+    duplicate_protocol: "none"
 
     # Custom parameters for dupsifter
     # Do not add -s, -o, -O, or reference path, as these are added automatically as needed based on other parameters in this 
@@ -122,10 +122,8 @@ contacts:
         # as these are added automatically as needed based on other parameters in this YAML file.
         call_params: >-
             --chrom-sizes /path/to/map3C_run/txt/ref.chrom.sizes
-            --restriction-sites /path/to/map3C_run/txt/MboI.txt
-            --restriction-sites /path/to/map3C_run/txt/NlaIII.txt
-            --restriction-enzymes MboI
-            --restriction-enzymes NlaIII
+            --restriction-sites /path/to/map3C_run/txt/MseI_CviQI.txt
+            --restriction-enzymes MseI_CviQI
             --reference-name ref
             --trim-reads
             --min-mapq 30 
@@ -141,6 +139,7 @@ contacts:
             --min-same-strand-dist-enzymeless 1000 
             --max-cut-site-split-algn-dist 20
             --max-cut-site-whole-algn-dist 500
+            --pair-combinations
     
     sort:
         # Sort contacts and artefacts by applying pairtools sort to their pairs files
@@ -188,7 +187,7 @@ read_analysis:
         # Options:
         # * "default" - Default masking protocol
         # * "none" - Do not perform this step
-        mask_protocol: "default"
+        mask_protocol: "none"
 
         # Extra parameters for map3C mask-overlaps. Do not add --bam and --out-prefix, as these are added automatically as needed 
         # based on other parameters in this YAML file.
@@ -197,7 +196,7 @@ read_analysis:
     coord_sort_bam:
 
         # Coordinate-sort BAM (required for ALLC generation)
-        coord_sort_bam_protocol: "default"
+        coord_sort_bam_protocol: "none"
 
     allc:
 
@@ -206,7 +205,7 @@ read_analysis:
         # Options:
         # * "default" - Default ALLC protocol
         # * "none" - Do not perform this step
-        allc_protocol: "default"
+        allc_protocol: "none"
 
         # Extra parameters for map3C bam-to-allc. Do not add --bam-path, --reference-fasta, --out-prefix, and --save-count-df, as 
         # these are added automatically as needed based on other parameters in this YAML file.
@@ -226,17 +225,12 @@ stats:
 
 trim_methods:
 
-    snm3Cseq:
+    GAGE-seq:
 
         cutadapt_params: >-
             -a AGATCGGAAGAGCACACGTCTGAAC 
-            -A AGATCGGAAGAGCGTCGTGTAGGGA 
-            -q 20 
-            -m 30
-            -u 18 
-            -u -10
-            -U 10
-            -U -10
+            -A CTGTCTCTTATACACATCT 
+            -u 12
+            -U 12
             --pair-filter 'both'
-            -O 6
 
